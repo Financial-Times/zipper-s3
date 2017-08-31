@@ -1,0 +1,7 @@
+*.iml
+.idea
+zipper-s3*
+vendor/*/
+.project
+.vscode
+.DS_Store
