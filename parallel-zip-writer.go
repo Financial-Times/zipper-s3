@@ -8,10 +8,12 @@ import (
 	gzip "github.com/klauspost/pgzip"
 	"archive/tar"
 	"io"
+	"fmt"
+	"strconv"
 )
 
-func writeZipFile(s3FilesChannel chan *minio.Object) *sync.WaitGroup {
-	zipFile, err := os.Create("out.zip")
+func writeZipFile(s3FilesChannel chan *minio.Object, zipName string) *sync.WaitGroup {
+	zipFile, err := os.Create(zipName)
 	if err != nil {
 		panic(err)
 	}
@@ -21,29 +23,25 @@ func writeZipFile(s3FilesChannel chan *minio.Object) *sync.WaitGroup {
 	noOfZippedFiles := 0
 	go func() {
 		infoLogger.Print("Starting to zip files...")
-
-		//compress the tar archive
 		gzipWriter, err := gzip.NewWriterLevel(zipFile, gzip.BestSpeed)
 		if err != nil {
 			errorLogger.Printf("Failed to create gzip writer : %s", err)
 			return
 		}
 		defer gzipWriter.Close()
-		//create a tar archive
+
 		tarWriter := tar.NewWriter(gzipWriter)
 		defer tarWriter.Close()
 
-		// Note the order (LIFO):
-		defer zipWriterWg.Done() // 2. signal that we're done
-		defer zipFile.Close() // 1. close the file
+		defer zipWriterWg.Done()
+		defer zipFile.Close()
 		for s3File := range s3FilesChannel {
 			fileInfo, _ := s3File.Stat()
 
 			fileInfoHeader := &tar.Header{
 				Name:    fileInfo.Key,
 				Size: fileInfo.Size,
-				//ModTime: fi.ModTime(),
-				//Mode:    int64(fm.Perm()),
+				Mode:    0644,
 			}
 
 			err = tarWriter.WriteHeader(fileInfoHeader)
@@ -66,7 +64,8 @@ func writeZipFile(s3FilesChannel chan *minio.Object) *sync.WaitGroup {
 	return &zipWriterWg
 }
 
-func zipFilesInParallel(s3Client *minio.Client, bucketName string, zipFileName string) {
+func zipFilesInParallel(s3Client *minio.Client, bucketName string, year int) {
+	zipName := fmt.Sprintf("FT-archive-%d.zip", year)
 	infoLogger.Print("Starting parallel zip creation process..")
 	startTime := time.Now()
 
@@ -74,19 +73,18 @@ func zipFilesInParallel(s3Client *minio.Client, bucketName string, zipFileName s
 	defer close(doneCh)
 
 	s3Files := make(chan *minio.Object)
-	zipWriterWg := writeZipFile(s3Files)
+	zipWriterWg := writeZipFile(s3Files, zipName)
 
-	// Send all files to the zip writer.
 	var s3DownloadWg sync.WaitGroup
 
-	s3ListObjectsChannel := s3Client.ListObjects(bucketName, "", true, doneCh)
+	s3ListObjectsChannel := s3Client.ListObjects(bucketName, strconv.Itoa(year), true, doneCh)
 	for s3Object := range s3ListObjectsChannel {
 		if s3Object.Err != nil {
 			errorLogger.Printf("Error while receiving objectInfo: %s", s3Object.Err)
 			continue
 		}
 		s3DownloadWg.Add(1)
-		// Read each file in parallel:
+
 		go func(s3FileName string) {
 			defer s3DownloadWg.Done()
 			obj, err := s3Client.GetObject(bucketName, s3FileName)
@@ -102,10 +100,9 @@ func zipFilesInParallel(s3Client *minio.Client, bucketName string, zipFileName s
 	}
 
 	s3DownloadWg.Wait()
-	// Once we're done sending the files, we can close the channel.
+
 	close(s3Files)
-	// This will cause ZipWriter to break out of the loop, close the file,
-	// and unblock the next mutex:
+
 	zipWriterWg.Wait()
 	zippingUpDuration := time.Since(startTime)
 	infoLogger.Printf("Finished zip creation process. Duration: %s", zippingUpDuration)

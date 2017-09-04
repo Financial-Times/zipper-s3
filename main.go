@@ -4,6 +4,7 @@ import (
 	"github.com/jawher/mow.cli"
 	"github.com/minio/minio-go"
 	"os"
+	"time"
 )
 
 func main() {
@@ -39,9 +40,9 @@ func main() {
 			os.Exit(1)
 		}
 
-		zipFileName := "target.zip"
-
-		zipFilesInParallel(s3Client, *bucketName, zipFileName)
+		currentYear := time.Now().Year()
+		zipFilesInParallel(s3Client, *bucketName, currentYear)
+		zipFilesInParallel(s3Client, *bucketName, currentYear - 1)
 	}
 
 	err := app.Run(os.Args)

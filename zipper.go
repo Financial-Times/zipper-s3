@@ -3,35 +3,44 @@ package main
 import (
 	"github.com/minio/minio-go"
 	"time"
-	"archive/zip"
 	"os"
 	"io"
+	"archive/tar"
+	"compress/gzip"
 )
 
-func addFileToZip(s3Client *minio.Client, bucketName string, fileName string, zipWriter *zip.Writer) {
-	obj, err := s3Client.GetObject(bucketName, fileName)
+func addFileToZip(s3Client *minio.Client, bucketName string, fileName string, tarWriter *tar.Writer) {
+	s3File, err := s3Client.GetObject(bucketName, fileName)
 	if err != nil {
 		errorLogger.Printf("Cannot download file with name %s from s3: %s", fileName, err)
 		return
 	}
 
-	defer obj.Close()
+	defer s3File.Close()
 	infoLogger.Printf("downloaded file with name: %s", fileName)
 
-	h := &zip.FileHeader{
-		Name:   fileName,
-		Method: zip.Deflate,
-		Flags:  0x800,
-	}
-	f, _ := zipWriter.CreateHeader(h)
+	fileInfo, _ := s3File.Stat()
 
-	_, err = io.Copy(f, obj)
+	fileInfoHeader := &tar.Header{
+		Name:    fileInfo.Key,
+		Size: fileInfo.Size,
+		//todo: add mode.
+		//Mode:    int64(fm.Perm()),
+	}
+
+	err = tarWriter.WriteHeader(fileInfoHeader)
 	if err != nil {
-		errorLogger.Printf("Cannot add file to zip archive: %s", err)
+		errorLogger.Printf("Cannot write tar header, error: %s", err)
 		return
 	}
 
-	infoLogger.Printf("Added file with name [%s] to zip archive.", fileName)
+	_, err = io.Copy(tarWriter, s3File)
+	if err != nil {
+		errorLogger.Printf("Cannot add file to archive, error: %s", err)
+		return
+	}
+
+	infoLogger.Printf("Added file with name %s to archive", fileInfo.Key)
 }
 
 func zipFiles(s3Client *minio.Client, bucketName string, zipFileName string) {
@@ -48,8 +57,16 @@ func zipFiles(s3Client *minio.Client, bucketName string, zipFileName string) {
 	defer zipFile.Close()
 	//defer os.Remove(zipFile.Path)
 
-	zipWriter := zip.NewWriter(zipFile)
-	defer zipWriter.Close()
+	//compress the tar archive
+	gzipWriter, err := gzip.NewWriterLevel(zipFile, gzip.BestSpeed)
+	if err != nil {
+		errorLogger.Printf("Failed to create gzip writer : %s", err)
+		return
+	}
+	defer gzipWriter.Close()
+	//create a tar archive
+	tarWriter := tar.NewWriter(gzipWriter)
+	defer tarWriter.Close()
 
 	objectCh := s3Client.ListObjects(bucketName, "", true, doneCh)
 	for object := range objectCh {
@@ -57,7 +74,7 @@ func zipFiles(s3Client *minio.Client, bucketName string, zipFileName string) {
 			errorLogger.Printf("Error while receiving objectInfo: %s", object.Err)
 			continue
 		}
-		go addFileToZip(s3Client, bucketName, object.Key, zipWriter)
+		addFileToZip(s3Client, bucketName, object.Key, tarWriter)
 		noOfZippedFiles++
 	}
 
