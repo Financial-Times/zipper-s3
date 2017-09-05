@@ -14,7 +14,7 @@ import (
 )
 
 const dateTemplate = "2006-01-02"
-var dateRegexp = regexp.MustCompile("^(19|20)([- /.])(0[1-9]|1[012])2(0[1-9]|[12][0-9]|3[01])$")
+var dateRegexp = regexp.MustCompile(`(19|20)\d\d-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])`)
 
 func writeZipFile(s3FilesChannel chan *minio.Object, zipName string) *sync.WaitGroup {
 	zipFile, err := os.Create(zipName)
