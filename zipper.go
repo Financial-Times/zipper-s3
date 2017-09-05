@@ -1,12 +1,12 @@
 package main
 
 import (
-	"github.com/minio/minio-go"
-	"time"
-	"os"
-	"io"
 	"archive/tar"
 	"compress/gzip"
+	"github.com/minio/minio-go"
+	"io"
+	"os"
+	"time"
 )
 
 func addFileToZip(s3Client *minio.Client, bucketName string, fileName string, tarWriter *tar.Writer) {
@@ -22,7 +22,7 @@ func addFileToZip(s3Client *minio.Client, bucketName string, fileName string, ta
 	fileInfo, _ := s3File.Stat()
 
 	fileInfoHeader := &tar.Header{
-		Name:    fileInfo.Key,
+		Name: fileInfo.Key,
 		Size: fileInfo.Size,
 		//todo: add mode.
 		//Mode:    int64(fm.Perm()),

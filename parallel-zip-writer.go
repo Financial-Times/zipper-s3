@@ -1,15 +1,15 @@
 package main
 
 import (
-	"time"
-	"os"
-	"sync"
-	"github.com/minio/minio-go"
-	gzip "github.com/klauspost/pgzip"
 	"archive/tar"
-	"io"
 	"fmt"
+	gzip "github.com/klauspost/pgzip"
+	"github.com/minio/minio-go"
+	"io"
+	"os"
 	"regexp"
+	"sync"
+	"time"
 )
 
 const dateTemplate = "2006-01-02"
@@ -43,9 +43,9 @@ func writeZipFile(s3FilesChannel chan *minio.Object, zipName string) *sync.WaitG
 			fileInfo, _ := s3File.Stat()
 
 			fileInfoHeader := &tar.Header{
-				Name:    fileInfo.Key,
+				Name: fileInfo.Key,
 				Size: fileInfo.Size,
-				Mode:    0644,
+				Mode: 0644,
 			}
 
 			err = tarWriter.WriteHeader(fileInfoHeader)
@@ -110,6 +110,23 @@ func zipFilesInParallel(s3Client *minio.Client, bucketName string, year int, s3C
 	zipWriterWg.Wait()
 	zippingUpDuration := time.Since(startTime)
 	infoLogger.Printf("Finished zip creation process. Duration: %s", zippingUpDuration)
+
+	//upload zip file to s3
+	infoLogger.Printf("Uploading file %s to s3...", zipName)
+	zipFileToBeUploaded, err := os.Open(zipName)
+	if err != nil {
+		errorLogger.Printf("Could not open zip archive with name %s to upload it to S3. Error was: %s", zipName, err)
+		return
+	}
+	defer zipFileToBeUploaded.Close()
+
+	_, err = s3Client.PutObject(bucketName, fmt.Sprintf("yearly-archives/%s", zipName), zipFileToBeUploaded, "application/octet-stream")
+	if err != nil {
+		errorLogger.Printf("Could not upload file with name %s to s3. Error was: %s", zipName, err)
+		return
+	}
+
+	infoLogger.Printf("Finished uploading file %s to s3", zipName)
 }
 
 func zipFilesInParallelLast30Days(s3Client *minio.Client, bucketName string, s3ContentFolder string) {
