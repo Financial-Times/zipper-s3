@@ -43,6 +43,7 @@ func main() {
 		currentYear := time.Now().Year()
 		zipFilesInParallel(s3Client, *bucketName, currentYear)
 		zipFilesInParallel(s3Client, *bucketName, currentYear - 1)
+		zipFilesInParallelLast30Days(s3Client,*bucketName)
 	}
 
 	err := app.Run(os.Args)
