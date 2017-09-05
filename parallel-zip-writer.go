@@ -13,10 +13,8 @@ import (
 	"regexp"
 )
 
-const (
-	dateRegexp = "^(19|20)([- /.])(0[1-9]|1[012])\2(0[1-9]|[12][0-9]|3[01])$"
-	dateTemplate = "2006-01-02"
-)
+const dateTemplate = "2006-01-02"
+var dateRegexp = regexp.MustCompile("^(19|20)([- /.])(0[1-9]|1[012])\\2(0[1-9]|[12][0-9]|3[01])$")
 
 func writeZipFile(s3FilesChannel chan *minio.Object, zipName string) *sync.WaitGroup {
 	zipFile, err := os.Create(zipName)
@@ -115,7 +113,6 @@ func zipFilesInParallel(s3Client *minio.Client, bucketName string, year int) {
 }
 
 func zipFilesInParallelLast30Days(s3Client *minio.Client, bucketName string) {
-	dateRegexpObj := regexp.MustCompile(dateRegexp)
 	zipName := "FT-archive-last-30-days.zip"
 	infoLogger.Print("Starting parallel zip creation process..")
 	startTime := time.Now()
@@ -137,7 +134,7 @@ func zipFilesInParallelLast30Days(s3Client *minio.Client, bucketName string) {
 		}
 
 		//check if the date is less that thirty days ago.
-		match := dateRegexpObj.FindStringSubmatch(s3Object.Key)
+		match := dateRegexp.FindStringSubmatch(s3Object.Key)
 		if len(match) < 1 {
 			errorLogger.Printf("Cannot parse date from s3 file name: %s", s3Object.Key)
 			continue
