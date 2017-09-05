@@ -48,9 +48,9 @@ func main() {
 		}
 
 		currentYear := time.Now().Year()
-		zipFilesInParallel(s3Client, *bucketName, currentYear, s3ContentFolder)
-		zipFilesInParallel(s3Client, *bucketName, currentYear - 1, s3ContentFolder)
-		zipFilesInParallelLast30Days(s3Client, *bucketName, s3ContentFolder)
+		zipFilesInParallel(s3Client, *bucketName, currentYear, *s3ContentFolder)
+		zipFilesInParallel(s3Client, *bucketName, currentYear - 1, *s3ContentFolder)
+		zipFilesInParallelLast30Days(s3Client, *bucketName, *s3ContentFolder)
 	}
 
 	err := app.Run(os.Args)

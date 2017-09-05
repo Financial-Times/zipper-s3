@@ -80,7 +80,7 @@ func zipFilesInParallel(s3Client *minio.Client, bucketName string, year int, s3C
 	zipWriterWg := writeZipFile(s3Files, zipName)
 
 	var s3DownloadWg sync.WaitGroup
-	s3ObjectKeyPrefix := fmt.Printf("%s/%d", s3ContentFolder, year)
+	s3ObjectKeyPrefix := fmt.Sprintf("%s/%d", s3ContentFolder, year)
 	s3ListObjectsChannel := s3Client.ListObjects(bucketName, s3ObjectKeyPrefix, true, doneCh)
 	for s3Object := range s3ListObjectsChannel {
 		if s3Object.Err != nil {
