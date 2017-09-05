@@ -9,11 +9,11 @@ import (
 	"archive/tar"
 	"io"
 	"fmt"
-	"strconv"
 	"regexp"
 )
 
 const dateTemplate = "2006-01-02"
+
 var dateRegexp = regexp.MustCompile(`(19|20)\d\d-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])`)
 
 func writeZipFile(s3FilesChannel chan *minio.Object, zipName string) *sync.WaitGroup {
@@ -68,7 +68,7 @@ func writeZipFile(s3FilesChannel chan *minio.Object, zipName string) *sync.WaitG
 	return &zipWriterWg
 }
 
-func zipFilesInParallel(s3Client *minio.Client, bucketName string, year int) {
+func zipFilesInParallel(s3Client *minio.Client, bucketName string, year int, s3ContentFolder string) {
 	zipName := fmt.Sprintf("FT-archive-%d.zip", year)
 	infoLogger.Print("Starting parallel zip creation process..")
 	startTime := time.Now()
@@ -80,8 +80,8 @@ func zipFilesInParallel(s3Client *minio.Client, bucketName string, year int) {
 	zipWriterWg := writeZipFile(s3Files, zipName)
 
 	var s3DownloadWg sync.WaitGroup
-
-	s3ListObjectsChannel := s3Client.ListObjects(bucketName, strconv.Itoa(year), true, doneCh)
+	s3ObjectKeyPrefix := fmt.Printf("%s/%d", s3ContentFolder, year)
+	s3ListObjectsChannel := s3Client.ListObjects(bucketName, s3ObjectKeyPrefix, true, doneCh)
 	for s3Object := range s3ListObjectsChannel {
 		if s3Object.Err != nil {
 			errorLogger.Printf("Error while receiving objectInfo: %s", s3Object.Err)
@@ -112,7 +112,7 @@ func zipFilesInParallel(s3Client *minio.Client, bucketName string, year int) {
 	infoLogger.Printf("Finished zip creation process. Duration: %s", zippingUpDuration)
 }
 
-func zipFilesInParallelLast30Days(s3Client *minio.Client, bucketName string) {
+func zipFilesInParallelLast30Days(s3Client *minio.Client, bucketName string, s3ContentFolder string) {
 	zipName := "FT-archive-last-30-days.zip"
 	infoLogger.Print("Starting parallel zip creation process..")
 	startTime := time.Now()
@@ -125,7 +125,7 @@ func zipFilesInParallelLast30Days(s3Client *minio.Client, bucketName string) {
 
 	var s3DownloadWg sync.WaitGroup
 
-	s3ListObjectsChannel := s3Client.ListObjects(bucketName, "", true, doneCh)
+	s3ListObjectsChannel := s3Client.ListObjects(bucketName, s3ContentFolder, true, doneCh)
 
 	for s3Object := range s3ListObjectsChannel {
 		if s3Object.Err != nil {

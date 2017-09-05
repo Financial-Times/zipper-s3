@@ -32,6 +32,13 @@ func main() {
 		EnvVar: "S3_DOMAIN",
 	})
 
+	s3ContentFolder := app.String(cli.StringOpt{
+		Name:   "s3-content-folder",
+		Value:  "unarchived-content",
+		Desc:   "Name of the folder that json files with the content are stored in.",
+		EnvVar: "S3_CONTENT_FOLDER",
+	})
+
 	app.Action = func() {
 		initLogs(os.Stdout, os.Stdout, os.Stderr)
 		s3Client, err := minio.New(*s3Domain, *awsAccessKey, *awsSecretKey, true)
@@ -41,9 +48,9 @@ func main() {
 		}
 
 		currentYear := time.Now().Year()
-		zipFilesInParallel(s3Client, *bucketName, currentYear)
-		zipFilesInParallel(s3Client, *bucketName, currentYear - 1)
-		zipFilesInParallelLast30Days(s3Client,*bucketName)
+		zipFilesInParallel(s3Client, *bucketName, currentYear, s3ContentFolder)
+		zipFilesInParallel(s3Client, *bucketName, currentYear - 1, s3ContentFolder)
+		zipFilesInParallelLast30Days(s3Client, *bucketName, s3ContentFolder)
 	}
 
 	err := app.Run(os.Args)
