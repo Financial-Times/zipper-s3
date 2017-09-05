@@ -41,6 +41,7 @@ func main() {
 
 	app.Action = func() {
 		initLogs(os.Stdout, os.Stdout, os.Stderr)
+		infoLogger.Printf("Starting app with parameters: [s3-content-folder=%s], [bucket-name=%s]", *s3ContentFolder, *bucketName)
 		s3Client, err := minio.New(*s3Domain, *awsAccessKey, *awsSecretKey, true)
 		if err != nil {
 			errorLogger.Printf("error while creating s3client: %s", err.Error())
@@ -49,7 +50,7 @@ func main() {
 
 		currentYear := time.Now().Year()
 		zipFilesInParallel(s3Client, *bucketName, currentYear, *s3ContentFolder)
-		zipFilesInParallel(s3Client, *bucketName, currentYear-1, *s3ContentFolder)
+		zipFilesInParallel(s3Client, *bucketName, currentYear - 1, *s3ContentFolder)
 		zipFilesInParallelLast30Days(s3Client, *bucketName, *s3ContentFolder)
 	}
 

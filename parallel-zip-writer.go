@@ -45,7 +45,7 @@ func writeZipFile(s3FilesChannel chan *minio.Object, zipName string) *sync.WaitG
 			fileInfoHeader := &tar.Header{
 				Name: fileInfo.Key,
 				Size: fileInfo.Size,
-				Mode: 0644,
+				Mode: int64(420) | 0100000,
 			}
 
 			err = tarWriter.WriteHeader(fileInfoHeader)
