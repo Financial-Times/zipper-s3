@@ -1,15 +1,14 @@
 package main
 
 import (
-	"archive/tar"
 	"fmt"
-	gzip "github.com/klauspost/pgzip"
 	"github.com/minio/minio-go"
 	"io"
 	"os"
 	"regexp"
 	"sync"
 	"time"
+	"archive/zip"
 )
 
 const dateTemplate = "2006-01-02"
@@ -27,40 +26,26 @@ func writeZipFile(s3FilesChannel chan *minio.Object, zipName string) *sync.WaitG
 	noOfZippedFiles := 0
 	go func() {
 		infoLogger.Print("Starting to zip files...")
-		gzipWriter, err := gzip.NewWriterLevel(zipFile, gzip.BestSpeed)
-		if err != nil {
-			errorLogger.Printf("Failed to create gzip writer : %s", err)
-			return
-		}
-		defer gzipWriter.Close()
 
-		tarWriter := tar.NewWriter(gzipWriter)
-		defer tarWriter.Close()
+		zipWriter := zip.NewWriter(zipFile)
+		defer zipWriter.Close()
 
-		defer zipWriterWg.Done()
 		defer zipFile.Close()
 		for s3File := range s3FilesChannel {
-			fileInfo, _ := s3File.Stat()
-
-			fileInfoHeader := &tar.Header{
-				Name: fileInfo.Key,
-				Size: fileInfo.Size,
-				Mode: int64(420) | 0100000,
+			fileInfo, err := s3File.Stat()
+			h := &zip.FileHeader{
+				Name:fileInfo.Key,
+				Method: zip.Deflate,
+				Flags:  0x800,
 			}
+			f, _ := zipWriter.CreateHeader(h)
 
-			err = tarWriter.WriteHeader(fileInfoHeader)
+			_, err = io.Copy(f, s3File)
 			if err != nil {
-				errorLogger.Printf("Cannot write tar header, error: %s", err)
-				continue
+				errorLogger.Printf("Cannot add file to zip archive: %s", err)
+				return
 			}
 
-			_, err = io.Copy(tarWriter, s3File)
-			if err != nil {
-				errorLogger.Printf("Cannot add file to archive, error: %s", err)
-				continue
-			}
-
-			infoLogger.Printf("Added file with name %s to archive", fileInfo.Key)
 			noOfZippedFiles++
 		}
 		infoLogger.Printf("Finished zipping up files. Number of zipped files is: %d", noOfZippedFiles)
