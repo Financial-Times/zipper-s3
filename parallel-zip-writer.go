@@ -31,6 +31,7 @@ func writeZipFile(s3FilesChannel chan *minio.Object, zipName string) *sync.WaitG
 		defer zipWriter.Close()
 
 		defer zipFile.Close()
+		defer zipWriterWg.Done()
 		for s3File := range s3FilesChannel {
 			fileInfo, err := s3File.Stat()
 			h := &zip.FileHeader{
