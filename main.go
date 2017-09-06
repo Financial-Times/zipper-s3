@@ -5,6 +5,7 @@ import (
 	"github.com/minio/minio-go"
 	"os"
 	"time"
+	"fmt"
 )
 
 func main() {
@@ -49,9 +50,9 @@ func main() {
 		}
 
 		currentYear := time.Now().Year()
-		zipFilesInParallel(s3Client, *bucketName, currentYear, *s3ContentFolder)
-		zipFilesInParallel(s3Client, *bucketName, currentYear - 1, *s3ContentFolder)
-		zipFilesInParallelLast30Days(s3Client, *bucketName, *s3ContentFolder)
+		zipFilesInParallel(s3Client, *bucketName, fmt.Sprintf("%s/%d", *s3ContentFolder, currentYear), fmt.Sprintf("FT-archive-%d.zip", currentYear), nil)
+		zipFilesInParallel(s3Client, *bucketName, fmt.Sprintf("%s/%d", *s3ContentFolder, currentYear - 1), fmt.Sprintf("FT-archive-%d.zip", currentYear - 1), nil)
+		zipFilesInParallel(s3Client, *bucketName, *s3ContentFolder, "FT-archive-last-30-days.zip", isContentLessThanThirtyDaysBefore)
 	}
 
 	err := app.Run(os.Args)
