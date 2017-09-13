@@ -19,17 +19,20 @@ var dateRegexp = regexp.MustCompile(`(19|20)\d\d-(0[1-9]|1[012])-(0[1-9]|[12][0-
 
 type fileSelector func(s3ObjectKey string) (bool, error)
 
-func writeZipFile(s3FilesChannel chan *minio.Object, zipName string) (string, *sync.WaitGroup) {
-	var zipWriterWg sync.WaitGroup
-	zipWriterWg.Add(1)
-	noOfZippedFiles := 0
-
+func writeZipFile(s3FilesChannel chan *minio.Object, zipName string) (string, *sync.WaitGroup, chan error) {
 	zipFile, err := ioutil.TempFile(os.TempDir(), zipName)
 	if err != nil {
 		errorLogger.Printf("Cannot create archive: %s", err)
 	}
 
+	errsChan := make(chan error)
+
+	var zipWriterWg sync.WaitGroup
+	zipWriterWg.Add(1)
 	go func() {
+		defer close(errsChan)
+
+		noOfZippedFiles := 0
 		defer zipWriterWg.Done()
 		infoLogger.Printf("Starting to zip files into archive with name %s", zipName)
 		defer zipFile.Close()
@@ -51,26 +54,33 @@ func writeZipFile(s3FilesChannel chan *minio.Object, zipName string) (string, *s
 			}
 			f, err := zipWriter.CreateHeader(h)
 			if err != nil {
-				errorLogger.Printf("Cannot create zip header for file, error was: %s", err)
-				continue
+				errsChan <- fmt.Errorf("Cannot create zip header for file, error was: %s", err)
+				return
 			}
 
 			_, err = io.Copy(f, s3File)
 			if err != nil {
-				errorLogger.Printf("Cannot add file to zip archive: %s", err)
-				continue
+				errsChan <- fmt.Errorf("Cannot add file to zip archive: %s", err)
+				return
 			}
 
 			infoLogger.Printf("Added file with name %s to archive.", fileNameSplit)
 
 			noOfZippedFiles++
 		}
+
+		if noOfZippedFiles == 0 {
+			errsChan <- fmt.Errorf("There are no files added to archive with name %s", zipName)
+			return
+		}
+
 		infoLogger.Printf("Finished adding files to zip with name %s. Number of zipped files is: %d", zipName, noOfZippedFiles)
 	}()
-	return zipFile.Name(), &zipWriterWg
+
+	return zipFile.Name(), &zipWriterWg, errsChan
 }
 
-func zipFilesInParallel(s3Client *minio.Client, bucketName string, s3ObjectKeyPrefix string, zipName string, fileSelectorFn fileSelector) {
+func zipFilesInParallel(s3Client *minio.Client, bucketName string, s3ObjectKeyPrefix string, zipName string, fileSelectorFn fileSelector) error {
 	infoLogger.Printf("Starting parallel zip creation process for archive with name %s", zipName)
 	startTime := time.Now()
 
@@ -78,22 +88,23 @@ func zipFilesInParallel(s3Client *minio.Client, bucketName string, s3ObjectKeyPr
 	defer close(doneCh)
 
 	s3Files := make(chan *minio.Object)
-	tempZipFileName, zipWriterWg := writeZipFile(s3Files, zipName)
+	//todo: read errs from ziperrschan and throw error further if smth happens.
+	tempZipFileName, zipWriterWg, zipErrsChan := writeZipFile(s3Files, zipName)
 	defer os.Remove(tempZipFileName)
 
 	var s3DownloadWg sync.WaitGroup
-
+	s3DownloadErrsChannel := make(chan error)
 	s3ListObjectsChannel := s3Client.ListObjects(bucketName, s3ObjectKeyPrefix, true, doneCh)
 	for s3Object := range s3ListObjectsChannel {
 		if s3Object.Err != nil {
-			errorLogger.Printf("Error while receiving objectInfo: %s", s3Object.Err)
-			continue
+			return fmt.Errorf("Error while receiving objectInfo: %s", s3Object.Err)
 		}
 
 		if fileSelectorFn != nil {
 			selectFile, err := fileSelectorFn(s3Object.Key)
 			if err != nil {
 				errorLogger.Printf("Cannot select S3 object. Error was: %s", err)
+				continue
 			}
 
 			if !selectFile {
@@ -104,9 +115,10 @@ func zipFilesInParallel(s3Client *minio.Client, bucketName string, s3ObjectKeyPr
 		s3DownloadWg.Add(1)
 		go func(s3FileName string) {
 			defer s3DownloadWg.Done()
-			obj, err := s3Client.GetObject(bucketName, s3FileName)
+
+			obj, err := getObjectFromS3(s3Client, bucketName, s3FileName, 3)
 			if err != nil {
-				errorLogger.Printf("Cannot download file with name %s from s3: %s", s3FileName, err)
+				s3DownloadErrsChannel <- fmt.Errorf("Cannot download file with name %s from s3: %s", s3FileName, err)
 				return
 			}
 
@@ -116,10 +128,21 @@ func zipFilesInParallel(s3Client *minio.Client, bucketName string, s3ObjectKeyPr
 		}(s3Object.Key)
 	}
 
-	s3DownloadWg.Wait()
+	s3DownloadErr := <-s3DownloadErrsChannel
+	if s3DownloadErr != nil {
+		return fmt.Errorf("Cannot download files from S3. Error was: %s", s3DownloadErr)
+	}
 
+	s3DownloadWg.Wait()
+	close(s3DownloadErrsChannel)
 	close(s3Files)
 
+	zipErr := <-zipErrsChan
+	if zipErr != nil {
+		return fmt.Errorf("Cannot create zip file with name %s, error was: %s", zipName, zipErr)
+	}
+
+	//todo: see if we need this.
 	zipWriterWg.Wait()
 	zippingUpDuration := time.Since(startTime)
 	infoLogger.Printf("Finished zip creation process for zip with name %s. Duration: %s", zipName, zippingUpDuration)
@@ -127,8 +150,10 @@ func zipFilesInParallel(s3Client *minio.Client, bucketName string, s3ObjectKeyPr
 	//upload zip file to s3
 	err := uploadFileToS3(s3Client, bucketName, tempZipFileName, zipName)
 	if err != nil {
-		errorLogger.Printf("Cannot upload file to S3. Error was: %s", err)
+		return fmt.Errorf("Cannot upload file to S3. Error was: %s", err)
 	}
+
+	return nil
 }
 
 func isDateLessThanThirtyDaysBefore(date time.Time) bool {
@@ -167,4 +192,18 @@ func uploadFileToS3(s3Client *minio.Client, bucketName string, localZipFileName 
 
 	infoLogger.Printf("Finished uploading file %s to s3", localZipFileName)
 	return nil
+}
+
+func getObjectFromS3(s3Client *minio.Client, bucketName string, fileName string, noOfRetries int) (*minio.Object, error) {
+	if noOfRetries == 0 {
+		return nil, fmt.Errorf("Cannot download file with name %s from s3.", fileName)
+	}
+
+	obj, err := s3Client.GetObject(bucketName, fileName)
+	if err != nil {
+		errorLogger.Printf("Cannot download file with name %s from s3: %s. Retrying..", fileName, err)
+		return getObjectFromS3(s3Client, bucketName, fileName, noOfRetries - 1)
+	}
+
+	return obj, nil
 }
