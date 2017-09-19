@@ -10,6 +10,14 @@ import (
 
 func main() {
 	app := cli.App("Custom Zipper", "Zips files from S3")
+	currentYear := time.Now().Year()
+
+	yearToStart := app.Int(cli.IntOpt{
+		Name:   "year-to-start",
+		Value:  currentYear - 1,
+		Desc:   "The app will create yearly zips starting from provided year. Defaults to previous year.",
+		EnvVar: "YEAR_TO_START",
+	})
 
 	awsAccessKey := app.String(cli.StringOpt{
 		Name:   "aws-access-key-id",
@@ -49,14 +57,22 @@ func main() {
 			os.Exit(1)
 		}
 
+		//zip files on a per year basis
 		currentYear := time.Now().Year()
-		zipFilesInParallel(s3Client, *bucketName, fmt.Sprintf("%s/%d", *s3ContentFolder, currentYear), fmt.Sprintf("FT-archive-%d.zip", currentYear), nil)
-		zipFilesInParallel(s3Client, *bucketName, fmt.Sprintf("%s/%d", *s3ContentFolder, currentYear - 1), fmt.Sprintf("FT-archive-%d.zip", currentYear - 1), nil)
+		for year := currentYear; year >= *yearToStart; year-- {
+			err = zipFilesInParallel(s3Client, *bucketName, fmt.Sprintf("%s/%d", *s3ContentFolder, year), fmt.Sprintf("FT-archive-%d.zip", year), nil)
+			if err != nil {
+				errorLogger.Printf("Zip creation process for year %s finished with error: %s", year, err)
+				os.Exit(1)
+			}
+		}
+
+		//zip files for last 30 days
 		err = zipFilesInParallel(s3Client, *bucketName, *s3ContentFolder, "FT-archive-last-30-days.zip", isContentLessThanThirtyDaysBefore)
 		if err != nil {
-			errorLogger.Printf("Zip creation process finished with error: %s", err)
+			errorLogger.Printf("Zip creation process for last 30 days finished with error: %s", err)
+			os.Exit(1)
 		}
-		os.Exit(1)
 	}
 
 	err := app.Run(os.Args)

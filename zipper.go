@@ -3,14 +3,14 @@ package main
 import (
 	"fmt"
 	"github.com/minio/minio-go"
-	"io"
 	"os"
 	"regexp"
 	"sync"
 	"time"
-	"archive/zip"
-	"strings"
 	"io/ioutil"
+	"archive/zip"
+	"io"
+	"strings"
 )
 
 const dateFormat = "2006-01-02"
@@ -19,19 +19,22 @@ var dateRegexp = regexp.MustCompile(`(19|20)\d\d-(0[1-9]|1[012])-(0[1-9]|[12][0-
 
 type fileSelector func(s3ObjectKey string) (bool, error)
 
-func writeZipFile(s3FilesChannel chan *minio.Object, zipName string) (string, *sync.WaitGroup) {
+func writeZipFile(s3FilesChannel chan *minio.Object, zipName string) (string, chan error, chan bool) {
+	errCh := make(chan error)
+	noFilesFlagCh := make(chan bool)
 	zipFile, err := ioutil.TempFile(os.TempDir(), zipName)
 	if err != nil {
-		errorLogger.Printf("Cannot create archive: %s", err)
+		errCh <- fmt.Errorf("Cannot create archive: %s", err)
+		return "", errCh, noFilesFlagCh
 	}
 
-	var zipWriterWg sync.WaitGroup
-	zipWriterWg.Add(1)
 	go func() {
-		noOfZippedFiles := 0
-		defer zipWriterWg.Done()
-		infoLogger.Printf("Starting to zip files into archive with name %s", zipName)
 		defer zipFile.Close()
+		defer close(errCh)
+		defer close(noFilesFlagCh)
+
+		infoLogger.Printf("Starting to zip files into archive with name %s", zipName)
+		noOfZippedFiles := 0
 
 		zipWriter := zip.NewWriter(zipFile)
 		defer zipWriter.Close()
@@ -50,14 +53,12 @@ func writeZipFile(s3FilesChannel chan *minio.Object, zipName string) (string, *s
 			}
 			f, err := zipWriter.CreateHeader(h)
 			if err != nil {
-				errorLogger.Printf("Cannot create zip header for file, error was: %s", err)
-				return
+				errCh <- fmt.Errorf("Cannot create zip header for file, error was: %s", err)
 			}
 
 			_, err = io.Copy(f, s3File)
 			if err != nil {
-				errorLogger.Printf("Cannot add file to zip archive: %s", err)
-				return
+				errCh <- fmt.Errorf("Cannot add file to zip archive: %s", err)
 			}
 
 			infoLogger.Printf("Added file with name %s to archive.", fileNameSplit)
@@ -66,14 +67,13 @@ func writeZipFile(s3FilesChannel chan *minio.Object, zipName string) (string, *s
 		}
 
 		if noOfZippedFiles == 0 {
-			errorLogger.Printf("There are no files added to archive with name %s", zipName)
-			return
+			noFilesFlagCh <- true
 		}
 
 		infoLogger.Printf("Finished adding files to zip with name %s. Number of zipped files is: %d", zipName, noOfZippedFiles)
 	}()
 
-	return zipFile.Name(), &zipWriterWg
+	return zipFile.Name(), errCh, noFilesFlagCh
 }
 
 func zipFilesInParallel(s3Client *minio.Client, bucketName string, s3ObjectKeyPrefix string, zipName string, fileSelectorFn fileSelector) error {
@@ -84,10 +84,11 @@ func zipFilesInParallel(s3Client *minio.Client, bucketName string, s3ObjectKeyPr
 	defer close(doneCh)
 
 	s3Files := make(chan *minio.Object)
-	tempZipFileName, zipWriterWg := writeZipFile(s3Files, zipName)
+	tempZipFileName, zipWriterErrCh, noZippedFilesFlagCh := writeZipFile(s3Files, zipName)
 	defer os.Remove(tempZipFileName)
 
 	var s3DownloadWg sync.WaitGroup
+	noOfDownloadedFiles := 0
 	s3ListObjectsChannel := s3Client.ListObjects(bucketName, s3ObjectKeyPrefix, true, doneCh)
 	for s3Object := range s3ListObjectsChannel {
 		if s3Object.Err != nil {
@@ -107,6 +108,7 @@ func zipFilesInParallel(s3Client *minio.Client, bucketName string, s3ObjectKeyPr
 		}
 
 		s3DownloadWg.Add(1)
+		noOfDownloadedFiles++
 		go func(s3FileName string) {
 			defer s3DownloadWg.Done()
 
@@ -122,15 +124,30 @@ func zipFilesInParallel(s3Client *minio.Client, bucketName string, s3ObjectKeyPr
 		}(s3Object.Key)
 	}
 
+	if noOfDownloadedFiles == 0 {
+		warnLogger.Printf("There are no files on S3 bucket that match the name prefix: %s", s3ObjectKeyPrefix)
+		return nil
+	}
+
 	s3DownloadWg.Wait()
 	close(s3Files)
 
-	zipWriterWg.Wait()
+	err := <-zipWriterErrCh
+	if err != nil {
+		return fmt.Errorf("Error while zipping files: %s", err)
+	}
+
+	noZippedFilesFlag := <-noZippedFilesFlagCh
+	if noZippedFilesFlag {
+		warnLogger.Printf("There are no files added to the zip with name %s", zipName)
+		return nil
+	}
+
 	zippingUpDuration := time.Since(startTime)
 	infoLogger.Printf("Finished zip creation process for zip with name %s. Duration: %s", zipName, zippingUpDuration)
 
 	//upload zip file to s3
-	err := uploadFileToS3(s3Client, bucketName, tempZipFileName, zipName)
+	err = uploadFileToS3(s3Client, bucketName, tempZipFileName, zipName)
 	if err != nil {
 		return fmt.Errorf("Cannot upload file to S3. Error was: %s", err)
 	}
