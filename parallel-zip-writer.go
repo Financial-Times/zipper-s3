@@ -25,6 +25,7 @@ func writeZipFile(s3FilesChannel chan *minio.Object, zipName string) *sync.WaitG
 
 	noOfZippedFiles := 0
 	go func() {
+		defer zipWriterWg.Done()
 		infoLogger.Print("Starting to zip files...")
 
 		zipWriter := zip.NewWriter(zipFile)
