@@ -4,6 +4,8 @@ import (
 	"github.com/jawher/mow.cli"
 	"github.com/minio/minio-go"
 	"os"
+	"fmt"
+	"time"
 )
 
 func main() {
@@ -47,11 +49,13 @@ func main() {
 			os.Exit(1)
 		}
 
-		//currentYear := time.Now().Year()
-		//zipFilesInParallel(s3Client, *bucketName, fmt.Sprintf("%s/%d", *s3ContentFolder, currentYear), fmt.Sprintf("FT-archive-%d.zip", currentYear), nil)
-		//zipFilesInParallel(s3Client, *bucketName, fmt.Sprintf("%s/%d", *s3ContentFolder, currentYear - 1), fmt.Sprintf("FT-archive-%d.zip", currentYear - 1), nil)
+		currentYear := time.Now().Year()
+		zipFilesInParallel(s3Client, *bucketName, fmt.Sprintf("%s/%d", *s3ContentFolder, currentYear), fmt.Sprintf("FT-archive-%d.zip", currentYear), nil)
+		zipFilesInParallel(s3Client, *bucketName, fmt.Sprintf("%s/%d", *s3ContentFolder, currentYear - 1), fmt.Sprintf("FT-archive-%d.zip", currentYear - 1), nil)
 		err = zipFilesInParallel(s3Client, *bucketName, *s3ContentFolder, "FT-archive-last-30-days.zip", isContentLessThanThirtyDaysBefore)
-		errorLogger.Printf("Zip creation process finished with error: %s", err)
+		if err != nil {
+			errorLogger.Printf("Zip creation process finished with error: %s", err)
+		}
 		os.Exit(1)
 	}
 
