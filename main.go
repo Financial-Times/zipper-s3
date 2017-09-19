@@ -23,7 +23,7 @@ func main() {
 	})
 	bucketName := app.String(cli.StringOpt{
 		Name:   "bucket-name",
-		Desc:   "bucket name of factset data",
+		Desc:   "bucket name of content",
 		EnvVar: "BUCKET_NAME",
 	})
 	s3Domain := app.String(cli.StringOpt{
