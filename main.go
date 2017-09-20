@@ -10,12 +10,11 @@ import (
 
 func main() {
 	app := cli.App("Custom Zipper", "Zips files from S3")
-	currentYear := time.Now().Year()
 
 	yearToStart := app.Int(cli.IntOpt{
 		Name:   "year-to-start",
-		Value:  currentYear - 1,
-		Desc:   "The app will create yearly zips starting from provided year. Defaults to previous year.",
+		Value:  1995,
+		Desc:   "The app will create yearly zips starting from provided year. Defaults to 1995, when the first FT article has been published.",
 		EnvVar: "YEAR_TO_START",
 	})
 
