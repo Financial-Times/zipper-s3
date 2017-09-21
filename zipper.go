@@ -176,7 +176,6 @@ func isContentLessThanThirtyDaysBefore(s3ObjectKey string) (bool, error) {
 }
 
 func uploadFileToS3(s3Client *minio.Client, bucketName string, localZipFileName string, s3ZipName string) error {
-
 	infoLogger.Printf("Uploading file %s to s3...", localZipFileName)
 	zipFileToBeUploaded, err := os.Open(localZipFileName)
 	if err != nil {

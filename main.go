@@ -62,7 +62,7 @@ func main() {
 		for year := currentYear; year >= *yearToStart; year-- {
 			err = zipFilesInParallel(s3Client, *bucketName, fmt.Sprintf("%s/%d", *s3ContentFolder, year), fmt.Sprintf("FT-archive-%d.zip", year), nil)
 			if err != nil {
-				errorLogger.Printf("Zip creation process for year %s finished with error: %s", year, err)
+				errorLogger.Printf("Zip creation process for year %d finished with error: %s", year, err)
 				os.Exit(1)
 			}
 		}
