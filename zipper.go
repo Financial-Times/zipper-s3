@@ -129,9 +129,8 @@ func zipFilesInParallel(s3Client *minio.Client, bucketName string, s3ObjectKeyPr
 		return nil
 	}
 
-	s3DownloadWg.Wait()
-	close(s3Files)
-
+	//todo: remove this
+	fmt.Printf("waiting for errors:::::::::::")
 	err := <-zipWriterErrCh
 	if err != nil {
 		return fmt.Errorf("Error while zipping files: %s", err)
@@ -142,6 +141,12 @@ func zipFilesInParallel(s3Client *minio.Client, bucketName string, s3ObjectKeyPr
 		warnLogger.Printf("There are no files added to the zip with name %s", zipName)
 		return nil
 	}
+
+	//todo: remove this
+	fmt.Printf("aaaaaaa")
+
+	s3DownloadWg.Wait()
+	close(s3Files)
 
 	zippingUpDuration := time.Since(startTime)
 	infoLogger.Printf("Finished zip creation process for zip with name %s. Duration: %s", zipName, zippingUpDuration)
