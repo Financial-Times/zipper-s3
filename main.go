@@ -6,6 +6,7 @@ import (
 	"os"
 	"fmt"
 	"time"
+	"sync"
 )
 
 func main() {
@@ -56,23 +57,28 @@ func main() {
 			os.Exit(1)
 		}
 
+		var zipperWg sync.WaitGroup
 		//zip files on a per year basis
 		currentYear := time.Now().Year()
 		startTime := time.Now()
 		for year := currentYear; year >= *yearToStart; year-- {
-			err = zipAndUploadFilesSequentially(s3Client, *bucketName, fmt.Sprintf("%s/%d", *s3ContentFolder, year), fmt.Sprintf("FT-archive-%d.zip", year), nil)
-			if err != nil {
-				errorLogger.Printf("Zip creation process for year %d finished with error: %s", year, err)
-				os.Exit(1)
-			}
+			zipperWg.Add(1)
+			go zipAndUploadFilesSequentially(s3Client, *bucketName, fmt.Sprintf("%s/%d", *s3ContentFolder, year), fmt.Sprintf("FT-archive-%d.zip", year), nil, &zipperWg)
+			//if err != nil {
+			//	errorLogger.Printf("Zip creation process for year %d finished with error: %s", year, err)
+			//	os.Exit(1)
+			//}
 		}
 
 		//zip files for last 30 days
-		err = zipAndUploadFilesSequentially(s3Client, *bucketName, *s3ContentFolder, "FT-archive-last-30-days.zip", isContentLessThanThirtyDaysBefore)
-		if err != nil {
-			errorLogger.Printf("Zip creation process for last 30 days finished with error: %s", err)
-			os.Exit(1)
-		}
+		zipperWg.Add(1)
+		go zipAndUploadFilesSequentially(s3Client, *bucketName, *s3ContentFolder, "FT-archive-last-30-days.zip", isContentLessThanThirtyDaysBefore, &zipperWg)
+		//if err != nil {
+		//	errorLogger.Printf("Zip creation process for last 30 days finished with error: %s", err)
+		//	os.Exit(1)
+		//}
+
+		zipperWg.Wait()
 		zippingUpDuration := time.Since(startTime)
 		infoLogger.Printf("Finished creating all the archives. Total duration is: %s", zippingUpDuration)
 	}

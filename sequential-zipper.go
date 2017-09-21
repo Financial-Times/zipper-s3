@@ -9,9 +9,11 @@ import (
 	"io/ioutil"
 	"strings"
 	"io"
+	"sync"
 )
 
-func zipAndUploadFilesSequentially(s3Client *minio.Client, bucketName string, s3ObjectKeyPrefix string, zipName string, fileSelectorFn fileSelector) error {
+func zipAndUploadFilesSequentially(s3Client *minio.Client, bucketName string, s3ObjectKeyPrefix string, zipName string, fileSelectorFn fileSelector, zipperWg *sync.WaitGroup) error {
+	defer zipperWg.Done()
 	tempZipFileName, noOfZippedFiles, err := zipFilesSequentially(s3Client, bucketName, s3ObjectKeyPrefix, zipName, fileSelectorFn)
 
 	if noOfZippedFiles == 0 {
