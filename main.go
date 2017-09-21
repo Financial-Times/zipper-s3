@@ -20,12 +20,12 @@ func main() {
 
 	awsAccessKey := app.String(cli.StringOpt{
 		Name:   "aws-access-key-id",
-		Desc:   "s3 access key",
+		Desc:   "S3 access key",
 		EnvVar: "AWS_ACCESS_KEY_ID",
 	})
 	awsSecretKey := app.String(cli.StringOpt{
 		Name:   "aws-secret-access-key",
-		Desc:   "s3 secret key",
+		Desc:   "S3 secret key",
 		EnvVar: "AWS_SECRET_ACCESS_KEY",
 	})
 	bucketName := app.String(cli.StringOpt{
@@ -36,7 +36,7 @@ func main() {
 	s3Domain := app.String(cli.StringOpt{
 		Name:   "s3-domain",
 		Value:  "s3.amazonaws.com",
-		Desc:   "s3 domain of content",
+		Desc:   "S3 domain of content",
 		EnvVar: "S3_DOMAIN",
 	})
 
@@ -58,6 +58,7 @@ func main() {
 
 		//zip files on a per year basis
 		currentYear := time.Now().Year()
+		startTime := time.Now()
 		for year := currentYear; year >= *yearToStart; year-- {
 			err = zipFilesInParallel(s3Client, *bucketName, fmt.Sprintf("%s/%d", *s3ContentFolder, year), fmt.Sprintf("FT-archive-%d.zip", year), nil)
 			if err != nil {
@@ -72,6 +73,8 @@ func main() {
 			errorLogger.Printf("Zip creation process for last 30 days finished with error: %s", err)
 			os.Exit(1)
 		}
+		zippingUpDuration := time.Since(startTime)
+		infoLogger.Printf("Finished creating all the archives. Total duration is: %s", zippingUpDuration)
 	}
 
 	err := app.Run(os.Args)

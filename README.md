@@ -23,9 +23,17 @@ Download the source code, dependencies and test dependencies:
         go install
 
 2. Run the binary (using the `help` flag to see the available optional arguments):
+    Environment variables:
+    - `YEAR_TO_START` the app will create yearly zips starting from provided year. Defaults to 1995, when the first FT article has been published. 
+    - `AWS_ACCESS_KEY_ID` S3 access key
+    - `AWS_SECRET_ACCESS_KEY` S3 secret key
+    - `BUCKET_NAME` bucket name of content
+    - `S3_DOMAIN` S3 domain of content
+    - `S3_CONTENT_FOLDER` name of the folder that json files with the content are stored in.
 
         $GOPATH/bin/zipper-s3 [--help]
         
+
 
 ## Build and deployment
 
