@@ -12,26 +12,28 @@ import (
 	"sync"
 )
 
-func zipAndUploadFilesSequentially(s3Client *minio.Client, bucketName string, s3ObjectKeyPrefix string, zipName string, fileSelectorFn fileSelector, zipperWg *sync.WaitGroup) error {
+func zipAndUploadFilesSequentially(s3Client *minio.Client, bucketName string, s3ObjectKeyPrefix string, zipName string, fileSelectorFn fileSelector, zipperWg *sync.WaitGroup, errsCh chan error) {
 	defer zipperWg.Done()
 	tempZipFileName, noOfZippedFiles, err := zipFilesSequentially(s3Client, bucketName, s3ObjectKeyPrefix, zipName, fileSelectorFn)
 
 	if noOfZippedFiles == 0 {
-		warnLogger.Printf("There is no content file on S3 to be added to archive with name %s", zipName)
-		return nil
+		warnLogger.Printf("There is no content file on S3 to be added to archive with name %s. The s3 file prefix that has been used is %s", zipName, s3ObjectKeyPrefix)
+		return
 	}
 
 	if err != nil {
-		return err
+		errsCh <- err
+		return
 	}
 
 	//upload zip file to s3
 	err = uploadFileToS3(s3Client, bucketName, tempZipFileName, zipName)
 	if err != nil {
-		return fmt.Errorf("Cannot upload file to S3. Error was: %s", err)
+		errsCh <- fmt.Errorf("Cannot upload file to S3. Error was: %s", err)
 	}
 
-	return nil
+	//todo: remove the temp archive.
+	return
 }
 
 func zipFilesSequentially(s3Client *minio.Client, bucketName string, s3ObjectKeyPrefix string, zipName string, fileSelectorFn fileSelector) (string, int, error) {
@@ -76,7 +78,7 @@ func zipFilesSequentially(s3Client *minio.Client, bucketName string, s3ObjectKey
 			return "", 0, fmt.Errorf("Cannot download file with name %s from s3: %s", s3Object.Key, err)
 		}
 
-		infoLogger.Printf("Downloaded file: %s", s3Object.Key)
+		//infoLogger.Printf("Downloaded file: %s", s3Object.Key)
 
 
 		//add file to zip
@@ -102,7 +104,7 @@ func zipFilesSequentially(s3Client *minio.Client, bucketName string, s3ObjectKey
 			return "", 0, fmt.Errorf("Cannot add file to zip archive: %s", err)
 		}
 
-		infoLogger.Printf("Added file with name %s to archive.", fileNameSplit)
+		//infoLogger.Printf("Added file with name %s to archive.", fileNameSplit)
 	}
 
 	zippingUpDuration := time.Since(startTime)

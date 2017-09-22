@@ -50,7 +50,7 @@ func main() {
 
 	app.Action = func() {
 		initLogs(os.Stdout, os.Stdout, os.Stderr)
-		infoLogger.Printf("Starting app with parameters: [s3-content-folder=%s], [bucket-name=%s]", *s3ContentFolder, *bucketName)
+		infoLogger.Printf("Starting app with parameters: [s3-content-folder=%s], [bucket-name=%s] [year-to-start=%d]", *s3ContentFolder, *bucketName,*yearToStart)
 		s3Client, err := minio.New(*s3Domain, *awsAccessKey, *awsSecretKey, true)
 		if err != nil {
 			errorLogger.Printf("error while creating s3client: %s", err.Error())
@@ -58,27 +58,37 @@ func main() {
 		}
 
 		var zipperWg sync.WaitGroup
+		errsCh := make(chan error)
 		//zip files on a per year basis
 		currentYear := time.Now().Year()
 		startTime := time.Now()
 		for year := currentYear; year >= *yearToStart; year-- {
 			zipperWg.Add(1)
-			go zipAndUploadFilesSequentially(s3Client, *bucketName, fmt.Sprintf("%s/%d", *s3ContentFolder, year), fmt.Sprintf("FT-archive-%d.zip", year), nil, &zipperWg)
-			//if err != nil {
-			//	errorLogger.Printf("Zip creation process for year %d finished with error: %s", year, err)
-			//	os.Exit(1)
-			//}
+			go zipAndUploadFilesSequentially(s3Client, *bucketName, fmt.Sprintf("%s/%d", *s3ContentFolder, year), fmt.Sprintf("FT-archive-%d.zip", year), nil, &zipperWg, errsCh)
 		}
 
 		//zip files for last 30 days
 		zipperWg.Add(1)
-		go zipAndUploadFilesSequentially(s3Client, *bucketName, *s3ContentFolder, "FT-archive-last-30-days.zip", isContentLessThanThirtyDaysBefore, &zipperWg)
-		//if err != nil {
-		//	errorLogger.Printf("Zip creation process for last 30 days finished with error: %s", err)
-		//	os.Exit(1)
-		//}
+		go zipAndUploadFilesSequentially(s3Client, *bucketName, *s3ContentFolder, "FT-archive-last-30-days.zip", isContentLessThanThirtyDaysBefore, &zipperWg, errsCh)
+
+		//todo: remove this:
+		go func() {
+			for {
+				infoLogger.Printf("heartbeat")
+				time.Sleep(30 * time.Second)
+			}
+		}()
+
+		go func() {
+			err = <-errsCh
+			if err != nil {
+				errorLogger.Printf("Zip creation process finished with error: %s", err)
+				os.Exit(1)
+			}
+		}()
 
 		zipperWg.Wait()
+
 		zippingUpDuration := time.Since(startTime)
 		infoLogger.Printf("Finished creating all the archives. Total duration is: %s", zippingUpDuration)
 	}
