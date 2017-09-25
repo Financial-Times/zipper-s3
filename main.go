@@ -1,12 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"github.com/jawher/mow.cli"
 	"github.com/minio/minio-go"
 	"os"
-	"fmt"
-	"time"
 	"sync"
+	"time"
 )
 
 func main() {
@@ -50,7 +50,7 @@ func main() {
 
 	app.Action = func() {
 		initLogs(os.Stdout, os.Stdout, os.Stderr)
-		infoLogger.Printf("Starting app with parameters: [s3-content-folder=%s], [bucket-name=%s] [year-to-start=%d]", *s3ContentFolder, *bucketName,*yearToStart)
+		infoLogger.Printf("Starting app with parameters: [s3-content-folder=%s], [bucket-name=%s] [year-to-start=%d]", *s3ContentFolder, *bucketName, *yearToStart)
 		s3Client, err := minio.New(*s3Domain, *awsAccessKey, *awsSecretKey, true)
 		if err != nil {
 			errorLogger.Printf("error while creating s3client: %s", err.Error())
@@ -74,7 +74,7 @@ func main() {
 		//todo: remove this:
 		go func() {
 			for {
-				infoLogger.Printf("heartbeat")
+				infoLogger.Print("heartbeat")
 				time.Sleep(30 * time.Second)
 			}
 		}()

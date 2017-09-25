@@ -1,21 +1,28 @@
 package main
 
 import (
-	"github.com/minio/minio-go"
-	"time"
-	"os"
-	"fmt"
 	"archive/zip"
-	"io/ioutil"
-	"strings"
+	"fmt"
+	"github.com/minio/minio-go"
 	"io"
+	"io/ioutil"
+	"os"
+	"regexp"
+	"strings"
 	"sync"
+	"time"
 )
+
+const dateFormat = "2006-01-02"
+
+var dateRegexp = regexp.MustCompile(`(19|20)\d\d-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])`)
+
+type fileSelector func(s3ObjectKey string) (bool, error)
 
 func zipAndUploadFilesSequentially(s3Client *minio.Client, bucketName string, s3ObjectKeyPrefix string, zipName string, fileSelectorFn fileSelector, zipperWg *sync.WaitGroup, errsCh chan error) {
 	defer zipperWg.Done()
 	tempZipFileName, noOfZippedFiles, err := zipFilesSequentially(s3Client, bucketName, s3ObjectKeyPrefix, zipName, fileSelectorFn)
-
+	defer os.Remove(tempZipFileName)
 	if noOfZippedFiles == 0 {
 		warnLogger.Printf("There is no content file on S3 to be added to archive with name %s. The s3 file prefix that has been used is %s", zipName, s3ObjectKeyPrefix)
 		return
@@ -78,19 +85,16 @@ func zipFilesSequentially(s3Client *minio.Client, bucketName string, s3ObjectKey
 			return "", 0, fmt.Errorf("Cannot download file with name %s from s3: %s", s3Object.Key, err)
 		}
 
-		//infoLogger.Printf("Downloaded file: %s", s3Object.Key)
-
-
 		//add file to zip
 		fileInfo, err := s3File.Stat()
 		fileNameSplit := strings.Split(fileInfo.Key, "/")
 		fileName := fileInfo.Key
 		if len(fileNameSplit) > 0 {
-			fileName = fileNameSplit[len(fileNameSplit) - 1]
+			fileName = fileNameSplit[len(fileNameSplit)-1]
 		}
 
 		h := &zip.FileHeader{
-			Name:fileName,
+			Name:   fileName,
 			Method: zip.Deflate,
 			Flags:  0x800,
 		}
@@ -103,11 +107,29 @@ func zipFilesSequentially(s3Client *minio.Client, bucketName string, s3ObjectKey
 		if err != nil {
 			return "", 0, fmt.Errorf("Cannot add file to zip archive: %s", err)
 		}
-
-		//infoLogger.Printf("Added file with name %s to archive.", fileNameSplit)
 	}
 
 	zippingUpDuration := time.Since(startTime)
-	infoLogger.Printf("Finished zip creation process for zip with name %s. Duration: %s", zipName, zippingUpDuration)
+	infoLogger.Printf("Finished zip creation process for zip with name %s. Duration: %s. Number of zipped files is: %d", zipName, zippingUpDuration, noOfZippedFiles)
 	return zipFile.Name(), noOfZippedFiles, nil
+}
+
+func isDateLessThanThirtyDaysBefore(date time.Time) bool {
+	thirtyDays := time.Duration(30 * 24 * time.Hour)
+	return time.Since(date) < thirtyDays
+}
+
+func isContentLessThanThirtyDaysBefore(s3ObjectKey string) (bool, error) {
+	//check if the date is less that thirty days ago.
+	match := dateRegexp.FindStringSubmatch(s3ObjectKey)
+	if len(match) < 1 {
+		return false, fmt.Errorf("Cannot parse date from s3 file name: %s", s3ObjectKey)
+	}
+
+	s3FileDate, err := time.Parse(dateFormat, match[0])
+	if err != nil {
+		return false, fmt.Errorf("Cannot parse date from s3 file name, error was: %s", err)
+	}
+
+	return isDateLessThanThirtyDaysBefore(s3FileDate), nil
 }
