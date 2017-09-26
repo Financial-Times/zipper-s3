@@ -3,7 +3,6 @@ package main
 import (
 	"archive/zip"
 	"fmt"
-	"github.com/minio/minio-go"
 	"io"
 	"io/ioutil"
 	"os"
@@ -19,9 +18,9 @@ var dateRegexp = regexp.MustCompile(`(19|20)\d\d-(0[1-9]|1[012])-(0[1-9]|[12][0-
 
 type fileSelector func(s3ObjectKey string) (bool, error)
 
-func zipAndUploadFiles(s3Client *minio.Client, bucketName string, s3ObjectKeyPrefix string, zipName string, fileSelectorFn fileSelector, zipperWg *sync.WaitGroup, errsCh chan error) {
+func zipAndUploadFiles(s3Config *s3Config, s3ObjectKeyPrefix string, zipName string, fileSelectorFn fileSelector, zipperWg *sync.WaitGroup, errsCh chan error) {
 	defer zipperWg.Done()
-	tempZipFileName, noOfZippedFiles, err := zipFiles(s3Client, bucketName, s3ObjectKeyPrefix, zipName, fileSelectorFn)
+	tempZipFileName, noOfZippedFiles, err := zipFiles(s3Config, s3ObjectKeyPrefix, zipName, fileSelectorFn)
 	defer os.Remove(tempZipFileName)
 
 	if err != nil {
@@ -35,7 +34,7 @@ func zipAndUploadFiles(s3Client *minio.Client, bucketName string, s3ObjectKeyPre
 	}
 
 	//upload zip file to s3
-	err = uploadFileToS3(s3Client, bucketName, tempZipFileName, zipName)
+	err = s3Config.uploadFile(tempZipFileName, zipName)
 	if err != nil {
 		errsCh <- fmt.Errorf("Cannot upload file to S3. Error was: %s", err)
 	}
@@ -43,7 +42,7 @@ func zipAndUploadFiles(s3Client *minio.Client, bucketName string, s3ObjectKeyPre
 	return
 }
 
-func zipFiles(s3Client *minio.Client, bucketName string, s3ObjectKeyPrefix string, zipName string, fileSelectorFn fileSelector) (string, int, error) {
+func zipFiles(s3Config *s3Config, s3ObjectKeyPrefix string, zipName string, fileSelectorFn fileSelector) (string, int, error) {
 	infoLogger.Printf("Starting zip creation process for archive with name %s", zipName)
 	startTime := time.Now()
 
@@ -59,7 +58,7 @@ func zipFiles(s3Client *minio.Client, bucketName string, s3ObjectKeyPrefix strin
 	defer zipWriter.Close()
 	infoLogger.Printf("Starting to zip files into archive with name %s", zipName)
 	noOfZippedFiles := 0
-	s3ListObjectsChannel := s3Client.ListObjects(bucketName, s3ObjectKeyPrefix, true, doneCh)
+	s3ListObjectsChannel := s3Config.client.ListObjects(s3Config.bucketName, s3ObjectKeyPrefix, true, doneCh)
 
 	for s3Object := range s3ListObjectsChannel {
 		if s3Object.Err != nil {
@@ -80,7 +79,7 @@ func zipFiles(s3Client *minio.Client, bucketName string, s3ObjectKeyPrefix strin
 
 		noOfZippedFiles++
 
-		s3File, err := getObjectFromS3(s3Client, bucketName, s3Object.Key, 3)
+		s3File, err := s3Config.downloadFile(s3Object.Key, 3)
 		if err != nil {
 			return "", 0, fmt.Errorf("Cannot download file with name %s from s3: %s", s3Object.Key, err)
 		}
@@ -90,7 +89,7 @@ func zipFiles(s3Client *minio.Client, bucketName string, s3ObjectKeyPrefix strin
 		fileNameSplit := strings.Split(fileInfo.Key, "/")
 		fileName := fileInfo.Key
 		if len(fileNameSplit) > 0 {
-			fileName = fileNameSplit[len(fileNameSplit) - 1]
+			fileName = fileNameSplit[len(fileNameSplit)-1]
 		}
 
 		h := &zip.FileHeader{

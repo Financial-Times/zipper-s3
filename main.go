@@ -57,6 +57,8 @@ func main() {
 			os.Exit(1)
 		}
 
+		s3Config := newS3Config(s3Client, *bucketName)
+
 		var zipperWg sync.WaitGroup
 		errsCh := make(chan error)
 		//zip files on a per year basis
@@ -64,16 +66,16 @@ func main() {
 		startTime := time.Now()
 		for year := currentYear; year >= *yearToStart; year-- {
 			zipperWg.Add(1)
-			go zipAndUploadFiles(s3Client, *bucketName, fmt.Sprintf("%s/%d", *s3ContentFolder, year), fmt.Sprintf("FT-archive-%d.zip", year), nil, &zipperWg, errsCh)
+			go zipAndUploadFiles(s3Config, fmt.Sprintf("%s/%d", *s3ContentFolder, year), fmt.Sprintf("FT-archive-%d.zip", year), nil, &zipperWg, errsCh)
 		}
 
 		//zip files for last 30 days
 		zipperWg.Add(1)
-		go zipAndUploadFiles(s3Client, *bucketName, *s3ContentFolder, "FT-archive-last-30-days.zip", isContentLessThanThirtyDaysBefore, &zipperWg, errsCh)
+		go zipAndUploadFiles(s3Config, *s3ContentFolder, "FT-archive-last-30-days.zip", isContentLessThanThirtyDaysBefore, &zipperWg, errsCh)
 
 		go func() {
 			for {
-				infoLogger.Printf("heartbeat [elapsed time: %s] [wg status: %v]", zipperWg,time.Since(startTime))
+				infoLogger.Printf("heartbeat [elapsed time: %s] [wg status: %v]", zipperWg, time.Since(startTime))
 				time.Sleep(30 * time.Second)
 			}
 		}()
