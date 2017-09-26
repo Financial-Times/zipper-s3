@@ -64,17 +64,16 @@ func main() {
 		startTime := time.Now()
 		for year := currentYear; year >= *yearToStart; year-- {
 			zipperWg.Add(1)
-			go zipAndUploadFilesSequentially(s3Client, *bucketName, fmt.Sprintf("%s/%d", *s3ContentFolder, year), fmt.Sprintf("FT-archive-%d.zip", year), nil, &zipperWg, errsCh)
+			go zipAndUploadFiles(s3Client, *bucketName, fmt.Sprintf("%s/%d", *s3ContentFolder, year), fmt.Sprintf("FT-archive-%d.zip", year), nil, &zipperWg, errsCh)
 		}
 
 		//zip files for last 30 days
 		zipperWg.Add(1)
-		go zipAndUploadFilesSequentially(s3Client, *bucketName, *s3ContentFolder, "FT-archive-last-30-days.zip", isContentLessThanThirtyDaysBefore, &zipperWg, errsCh)
+		go zipAndUploadFiles(s3Client, *bucketName, *s3ContentFolder, "FT-archive-last-30-days.zip", isContentLessThanThirtyDaysBefore, &zipperWg, errsCh)
 
-		//todo: remove this:
 		go func() {
 			for {
-				infoLogger.Print("heartbeat")
+				infoLogger.Printf("heartbeat [elapsed time: %s] [wg status: %v]", zipperWg,time.Since(startTime))
 				time.Sleep(30 * time.Second)
 			}
 		}()
@@ -96,5 +95,6 @@ func main() {
 	err := app.Run(os.Args)
 	if err != nil {
 		errorLogger.Printf("Error while running app [%v]", err)
+		os.Exit(1)
 	}
 }

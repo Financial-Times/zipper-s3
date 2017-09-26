@@ -19,17 +19,18 @@ var dateRegexp = regexp.MustCompile(`(19|20)\d\d-(0[1-9]|1[012])-(0[1-9]|[12][0-
 
 type fileSelector func(s3ObjectKey string) (bool, error)
 
-func zipAndUploadFilesSequentially(s3Client *minio.Client, bucketName string, s3ObjectKeyPrefix string, zipName string, fileSelectorFn fileSelector, zipperWg *sync.WaitGroup, errsCh chan error) {
+func zipAndUploadFiles(s3Client *minio.Client, bucketName string, s3ObjectKeyPrefix string, zipName string, fileSelectorFn fileSelector, zipperWg *sync.WaitGroup, errsCh chan error) {
 	defer zipperWg.Done()
-	tempZipFileName, noOfZippedFiles, err := zipFilesSequentially(s3Client, bucketName, s3ObjectKeyPrefix, zipName, fileSelectorFn)
+	tempZipFileName, noOfZippedFiles, err := zipFiles(s3Client, bucketName, s3ObjectKeyPrefix, zipName, fileSelectorFn)
 	defer os.Remove(tempZipFileName)
-	if noOfZippedFiles == 0 {
-		warnLogger.Printf("There is no content file on S3 to be added to archive with name %s. The s3 file prefix that has been used is %s", zipName, s3ObjectKeyPrefix)
-		return
-	}
 
 	if err != nil {
 		errsCh <- err
+		return
+	}
+
+	if noOfZippedFiles == 0 {
+		warnLogger.Printf("There is no content file on S3 to be added to archive with name %s. The s3 file prefix that has been used is %s", zipName, s3ObjectKeyPrefix)
 		return
 	}
 
@@ -39,11 +40,10 @@ func zipAndUploadFilesSequentially(s3Client *minio.Client, bucketName string, s3
 		errsCh <- fmt.Errorf("Cannot upload file to S3. Error was: %s", err)
 	}
 
-	//todo: remove the temp archive.
 	return
 }
 
-func zipFilesSequentially(s3Client *minio.Client, bucketName string, s3ObjectKeyPrefix string, zipName string, fileSelectorFn fileSelector) (string, int, error) {
+func zipFiles(s3Client *minio.Client, bucketName string, s3ObjectKeyPrefix string, zipName string, fileSelectorFn fileSelector) (string, int, error) {
 	infoLogger.Printf("Starting zip creation process for archive with name %s", zipName)
 	startTime := time.Now()
 
@@ -90,7 +90,7 @@ func zipFilesSequentially(s3Client *minio.Client, bucketName string, s3ObjectKey
 		fileNameSplit := strings.Split(fileInfo.Key, "/")
 		fileName := fileInfo.Key
 		if len(fileNameSplit) > 0 {
-			fileName = fileNameSplit[len(fileNameSplit)-1]
+			fileName = fileNameSplit[len(fileNameSplit) - 1]
 		}
 
 		h := &zip.FileHeader{

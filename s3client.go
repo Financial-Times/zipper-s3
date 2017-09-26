@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/minio/minio-go"
 	"os"
+	"time"
 )
 
 func uploadFileToS3(s3Client *minio.Client, bucketName string, localZipFileName string, s3ZipName string) error {
@@ -30,8 +31,9 @@ func getObjectFromS3(s3Client *minio.Client, bucketName string, fileName string,
 
 	obj, err := s3Client.GetObject(bucketName, fileName)
 	if err != nil {
-		errorLogger.Printf("Cannot download file with name %s from s3: %s. Retrying..", fileName, err)
-		return getObjectFromS3(s3Client, bucketName, fileName, noOfRetries-1)
+		errorLogger.Printf("Cannot download file with name %s from s3: %s. Sleeping for 5 seconds and retrying..", fileName, err)
+		time.Sleep(5 * time.Second)
+		return getObjectFromS3(s3Client, bucketName, fileName, noOfRetries - 1)
 	}
 
 	return obj, nil
