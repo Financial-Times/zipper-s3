@@ -1,5 +1,5 @@
 # zipper-s3
-[![Circle CI](https://circleci.com/gh/Financial-Times/zipper-s3/tree/master.png?style=shield)](https://circleci.com/gh/Financial-Times/zipper-s3/tree/master)[![Go Report Card](https://goreportcard.com/badge/github.com/Financial-Times/zipper-s3)](https://goreportcard.com/report/github.com/Financial-Times/zipper-s3) [![Coverage Status](https://coveralls.io/repos/github/Financial-Times/zipper-s3/badge.svg)](https://coveralls.io/github/Financial-Times/zipper-s3)
+[![Circle CI](https://circleci.com/gh/Financial-Times/zipper-s3/tree/master.png?style=shield)](https://circleci.com/gh/Financial-Times/zipper-s3/tree/master) [![Go Report Card](https://goreportcard.com/badge/github.com/Financial-Times/zipper-s3)](https://goreportcard.com/report/github.com/Financial-Times/zipper-s3) [![Coverage Status](https://coveralls.io/repos/github/Financial-Times/zipper-s3/badge.svg)](https://coveralls.io/github/Financial-Times/zipper-s3)
 ## Introduction
 
 UPP Golang App to download files from S3, zip them and upload the newly created zip file back to S3
