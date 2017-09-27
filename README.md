@@ -1,4 +1,5 @@
 # zipper-s3
+[![Coverage Status](https://coveralls.io/repos/github/Financial-Times/zipper-s3/badge.svg?branch=master)](https://coveralls.io/github/Financial-Times/zipper-s3?branch=master)
 
 ## Introduction
 
