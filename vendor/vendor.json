@@ -15,6 +15,13 @@
 			"revisionTime": "2016-03-23T11:15:42Z"
 		},
 		{
+			"checksumSHA1": "OFu4xJEIjiI8Suu+j/gabfp+y6Q=",
+			"origin": "github.com/stretchr/testify/vendor/github.com/davecgh/go-spew/spew",
+			"path": "github.com/davecgh/go-spew/spew",
+			"revision": "f6abca593680b2315d2075e0f5e2a9751e3f431a",
+			"revisionTime": "2017-06-01T20:57:54Z"
+		},
+		{
 			"checksumSHA1": "87LEfpY9cOk9CP7pWyIbmQ/6enU=",
 			"path": "github.com/go-ini/ini",
 			"revision": "c787282c39ac1fc618827141a1f762240def08a3",
@@ -97,6 +104,19 @@
 			"path": "github.com/minio/minio-go/pkg/set",
 			"revision": "8cf0454aea55db44675ec9c6bfc6ebaaa819dfa7",
 			"revisionTime": "2017-08-17T03:05:17Z"
+		},
+		{
+			"checksumSHA1": "zKKp5SZ3d3ycKe4EKMNT0BqAWBw=",
+			"origin": "github.com/stretchr/testify/vendor/github.com/pmezard/go-difflib/difflib",
+			"path": "github.com/pmezard/go-difflib/difflib",
+			"revision": "f6abca593680b2315d2075e0f5e2a9751e3f431a",
+			"revisionTime": "2017-06-01T20:57:54Z"
+		},
+		{
+			"checksumSHA1": "5NBHAe3S15q3L9hOLThnMZjIZRE=",
+			"path": "github.com/stretchr/testify/assert",
+			"revision": "f6abca593680b2315d2075e0f5e2a9751e3f431a",
+			"revisionTime": "2017-06-01T20:57:54Z"
 		}
 	],
 	"rootPath": "github.com/Financial-Times/zipper-s3"

@@ -25,14 +25,14 @@ const (
 func (s3Client *mockS3Client) GetObject(bucketName, objectName string) (*minio.Object, error) {
 	if s3Client.shouldRetry {
 		s3Client.shouldRetry = false
-		return nil, fmt.Errorf("network fail")
+		return nil, fmt.Errorf("Too many requests")
 	}
 
 	if objectName == validFileName {
 		return &minio.Object{}, nil
 	}
 
-	return nil, fmt.Errorf("Invalid object name")
+	return nil, fmt.Errorf("Network failure")
 }
 func (s3Client *mockS3Client) PutObject(bucketName, objectName string, reader io.Reader, contentType string) (n int64, err error) {
 	fmt.Printf("name is: %s", objectName)
@@ -62,21 +62,21 @@ func TestDownloadFileHappyFlow(t *testing.T) {
 	assert.NotNil(t, downloadedFile)
 }
 
-//func TestDownloadFileWithOneRetry(t *testing.T) {
-//	initLogs(os.Stdout, os.Stdout, os.Stderr)
-//	s3Config := newS3Config(&mockS3Client{shouldRetry:true}, "test-bucket")
-//	downloadedFile, err := s3Config.downloadFile(validFileName, 3)
-//	assert.Nil(t, err)
-//	assert.NotNil(t, downloadedFile)
-//}
-//
-//func TestDownloadFileWithInvalidFileName(t *testing.T) {
-//	initLogs(os.Stdout, os.Stdout, os.Stderr)
-//	s3Config := newS3Config(&mockS3Client{}, "test-bucket")
-//	downloadedFile, err := s3Config.downloadFile(invalidFileName, 3)
-//	assert.NotNil(t, err)
-//	assert.Nil(t, downloadedFile)
-//}
+func TestDownloadFileWithOneRetry(t *testing.T) {
+	initLogs(os.Stdout, os.Stdout, os.Stderr)
+	s3Config := newS3Config(&mockS3Client{shouldRetry:true}, "test-bucket")
+	downloadedFile, err := s3Config.downloadFile(validFileName, 3)
+	assert.Nil(t, err)
+	assert.NotNil(t, downloadedFile)
+}
+
+func TestDownloadFileWithInvalidFileName(t *testing.T) {
+	initLogs(os.Stdout, os.Stdout, os.Stderr)
+	s3Config := newS3Config(&mockS3Client{}, "test-bucket")
+	downloadedFile, err := s3Config.downloadFile(invalidFileName, 3)
+	assert.NotNil(t, err)
+	assert.Nil(t, downloadedFile)
+}
 
 func TestUploadFileHappyFlow(t *testing.T) {
 	initLogs(os.Stdout, os.Stdout, os.Stderr)
