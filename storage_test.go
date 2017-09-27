@@ -57,15 +57,19 @@ func (s3Client *mockS3Client) ListObjects(bucketName, objectPrefix string, recur
 
 func TestDownloadFileHappyFlow(t *testing.T) {
 	s3Config := newS3Config(&mockS3Client{}, "test-bucket")
+
 	downloadedFile, err := s3Config.downloadFile(validFileName, 2)
+
 	assert.Nil(t, err)
 	assert.NotNil(t, downloadedFile)
 }
 
 func TestDownloadFileWithOneRetry(t *testing.T) {
 	initLogs(os.Stdout, os.Stdout, os.Stderr)
-	s3Config := newS3Config(&mockS3Client{shouldRetry:true}, "test-bucket")
+	s3Config := newS3Config(&mockS3Client{shouldRetry: true}, "test-bucket")
+
 	downloadedFile, err := s3Config.downloadFile(validFileName, 3)
+
 	assert.Nil(t, err)
 	assert.NotNil(t, downloadedFile)
 }
@@ -73,7 +77,9 @@ func TestDownloadFileWithOneRetry(t *testing.T) {
 func TestDownloadFileWithInvalidFileName(t *testing.T) {
 	initLogs(os.Stdout, os.Stdout, os.Stderr)
 	s3Config := newS3Config(&mockS3Client{}, "test-bucket")
+
 	downloadedFile, err := s3Config.downloadFile(invalidFileName, 3)
+
 	assert.NotNil(t, err)
 	assert.Nil(t, downloadedFile)
 }
@@ -85,16 +91,19 @@ func TestUploadFileHappyFlow(t *testing.T) {
 	tempZipName := zipFile.Name()
 	defer os.Remove(tempZipName)
 	zipFile.Close()
-
 	s3Config := newS3Config(&mockS3Client{}, "test-bucket")
+
 	err = s3Config.uploadFile(tempZipName, "test.zip")
+
 	assert.Nil(t, err)
 }
 
 func TestUploadFileNonExistingZip(t *testing.T) {
 	initLogs(os.Stdout, os.Stdout, os.Stderr)
 	s3Config := newS3Config(&mockS3Client{}, "test-bucket")
+
 	err := s3Config.uploadFile(nonExistingZip, "test.zip")
+
 	assert.NotNil(t, err)
 }
 
@@ -105,8 +114,9 @@ func TestUploadFileWithS3ClientFailure(t *testing.T) {
 	tempZipName := zipFile.Name()
 	defer os.Remove(tempZipName)
 	zipFile.Close()
-
 	s3Config := newS3Config(&mockS3Client{}, "test-bucket")
+
 	err = s3Config.uploadFile(tempZipName, invalidZipName)
+
 	assert.NotNil(t, err)
 }
