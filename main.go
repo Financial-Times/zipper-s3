@@ -5,13 +5,17 @@ import (
 	"github.com/jawher/mow.cli"
 	"github.com/minio/minio-go"
 	"os"
-	"sync"
 	"time"
 )
 
 func main() {
 	app := cli.App("Custom Zipper", "Zips files from S3")
-
+	maxNoOfGoroutines := app.Int(cli.IntOpt{
+		Name:   "max-no-of-goroutines",
+		Value:  3,
+		Desc:   "The maximum number of goroutines which is used to zip files.",
+		EnvVar: "MAX_NO_OF_GOROUTINES",
+	})
 	yearToStart := app.Int(cli.IntOpt{
 		Name:   "year-to-start",
 		Value:  1995,
@@ -50,7 +54,7 @@ func main() {
 
 	app.Action = func() {
 		initLogs(os.Stdout, os.Stdout, os.Stderr)
-		infoLogger.Printf("Starting app with parameters: [s3-content-folder=%s], [bucket-name=%s] [year-to-start=%d]", *s3ContentFolder, *bucketName, *yearToStart)
+		infoLogger.Printf("Starting app with parameters: [s3-content-folder=%s], [bucket-name=%s] [year-to-start=%d] [max-no-of-goroutines=%d]", *s3ContentFolder, *bucketName, *yearToStart, *maxNoOfGoroutines)
 		s3Client, err := minio.New(*s3Domain, *awsAccessKey, *awsSecretKey, true)
 		if err != nil {
 			errorLogger.Printf("error while creating s3client: %s", err.Error())
@@ -59,23 +63,47 @@ func main() {
 
 		s3Config := newS3Config(s3Client, *bucketName)
 
-		var zipperWg sync.WaitGroup
 		errsCh := make(chan error)
 		//zip files on a per year basis
 		currentYear := time.Now().Year()
 		startTime := time.Now()
-		for year := currentYear; year >= *yearToStart; year-- {
-			zipperWg.Add(1)
-			go zipAndUploadFiles(s3Config, fmt.Sprintf("%s/%d", *s3ContentFolder, year), fmt.Sprintf("FT-archive-%d.zip", year), nil, &zipperWg, errsCh)
+
+		concurrentGoroutines := make(chan struct{}, *maxNoOfGoroutines)
+		// Fill the dummy channel with maxNbConcurrentGoroutines empty struct.
+		for i := 0; i < *maxNoOfGoroutines; i++ {
+			concurrentGoroutines <- struct{}{}
+		}
+
+		// The done channel indicates when a single goroutine has
+		// finished its job.
+		done := make(chan bool)
+		// The waitForAllJobs channel allows the main program
+		// to wait until we have indeed done all the jobs.
+		waitForAllJobs := make(chan bool)
+
+		go func() {
+			for year := *yearToStart; year <= currentYear; year++ {
+				<-done
+				// Say that another goroutine can now start.
+				concurrentGoroutines <- struct{}{}
+			}
+			// We have collected all the jobs, the program
+			// can now terminate
+			waitForAllJobs <- true
+		}()
+
+		for year := *yearToStart; year <= currentYear; year++ {
+			infoLogger.Printf("Zipping up files from year %d waiting to launch!\n", year)
+			<-concurrentGoroutines
+			go zipAndUploadFiles(s3Config, fmt.Sprintf("%s/%d", *s3ContentFolder, year), fmt.Sprintf("FT-archive-%d.zip", year), nil, done, errsCh)
 		}
 
 		//zip files for last 30 days
-		zipperWg.Add(1)
-		go zipAndUploadFiles(s3Config, *s3ContentFolder, "FT-archive-last-30-days.zip", isContentLessThanThirtyDaysBefore, &zipperWg, errsCh)
+		go zipAndUploadFiles(s3Config, *s3ContentFolder, "FT-archive-last-30-days.zip", isContentLessThanThirtyDaysBefore, done, errsCh)
 
 		go func() {
 			for {
-				infoLogger.Printf("heartbeat [elapsed time: %s] [wg status: %v]", zipperWg, time.Since(startTime))
+				infoLogger.Printf("heartbeat [elapsed time: %s]", time.Since(startTime))
 				time.Sleep(30 * time.Second)
 			}
 		}()
@@ -88,7 +116,8 @@ func main() {
 			}
 		}()
 
-		zipperWg.Wait()
+		// Wait for all jobs to finish
+		<-waitForAllJobs
 
 		zippingUpDuration := time.Since(startTime)
 		infoLogger.Printf("Finished creating all the archives. Total duration is: %s", zippingUpDuration)

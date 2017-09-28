@@ -8,7 +8,6 @@ import (
 	"os"
 	"regexp"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -18,8 +17,11 @@ var dateRegexp = regexp.MustCompile(`(19|20)\d\d-(0[1-9]|1[012])-(0[1-9]|[12][0-
 
 type fileSelector func(s3ObjectKey string) (bool, error)
 
-func zipAndUploadFiles(s3Config *s3Config, s3ObjectKeyPrefix string, zipName string, fileSelectorFn fileSelector, zipperWg *sync.WaitGroup, errsCh chan error) {
-	defer zipperWg.Done()
+func zipAndUploadFiles(s3Config *s3Config, s3ObjectKeyPrefix string, zipName string, fileSelectorFn fileSelector, done chan bool, errsCh chan error) {
+	defer func() {
+		done <- true
+	}()
+
 	tempZipFileName, noOfZippedFiles, err := zipFiles(s3Config, s3ObjectKeyPrefix, zipName, fileSelectorFn)
 	defer os.Remove(tempZipFileName)
 
@@ -89,7 +91,7 @@ func zipFiles(s3Config *s3Config, s3ObjectKeyPrefix string, zipName string, file
 		fileNameSplit := strings.Split(fileInfo.Key, "/")
 		fileName := fileInfo.Key
 		if len(fileNameSplit) > 0 {
-			fileName = fileNameSplit[len(fileNameSplit)-1]
+			fileName = fileNameSplit[len(fileNameSplit) - 1]
 		}
 
 		h := &zip.FileHeader{
