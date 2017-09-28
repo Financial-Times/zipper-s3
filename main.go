@@ -92,21 +92,21 @@ func main() {
 			waitForAllJobs <- true
 		}()
 
-		for year := *yearToStart; year <= currentYear; year++ {
-			infoLogger.Printf("Zipping up files from year %d waiting to launch!\n", year)
-			<-concurrentGoroutines
-			go zipAndUploadFiles(s3Config, fmt.Sprintf("%s/%d", *s3ContentFolder, year), fmt.Sprintf("FT-archive-%d.zip", year), nil, done, errsCh)
-		}
-
-		//zip files for last 30 days
-		go zipAndUploadFiles(s3Config, *s3ContentFolder, "FT-archive-last-30-days.zip", isContentLessThanThirtyDaysBefore, done, errsCh)
-
 		go func() {
 			for {
 				infoLogger.Printf("heartbeat [elapsed time: %s]", time.Since(startTime))
 				time.Sleep(30 * time.Second)
 			}
 		}()
+
+		for year := *yearToStart; year <= currentYear; year++ {
+			infoLogger.Printf("Zipping up files from year %d waiting to launch!", year)
+			<-concurrentGoroutines
+			go zipAndUploadFiles(s3Config, fmt.Sprintf("%s/%d", *s3ContentFolder, year), fmt.Sprintf("FT-archive-%d.zip", year), nil, done, errsCh)
+		}
+
+		//zip files for last 30 days
+		go zipAndUploadFiles(s3Config, *s3ContentFolder, "FT-archive-last-30-days.zip", isContentLessThanThirtyDaysBefore, done, errsCh)
 
 		go func() {
 			err = <-errsCh
