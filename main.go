@@ -105,6 +105,9 @@ func main() {
 			go zipAndUploadFiles(s3Config, fmt.Sprintf("%s/%d", *s3ContentFolder, year), fmt.Sprintf("FT-archive-%d.zip", year), nil, done, errsCh)
 		}
 
+		//wait for last archive to be finished.
+		<-done
+
 		//zip files for last 30 days
 		go zipAndUploadFiles(s3Config, *s3ContentFolder, "FT-archive-last-30-days.zip", isContentLessThanThirtyDaysBefore, done, errsCh)
 

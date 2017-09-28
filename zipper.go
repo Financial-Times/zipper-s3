@@ -86,8 +86,12 @@ func zipFiles(s3Config *s3Config, s3ObjectKeyPrefix string, zipName string, file
 			return "", 0, fmt.Errorf("Cannot download file with name %s from s3: %s", s3Object.Key, err)
 		}
 
-		//add file to zip
 		fileInfo, err := s3File.Stat()
+		if err != nil {
+			return "", 0, fmt.Errorf("Cannot download file with name %s from s3: %s", s3Object.Key, err)
+		}
+
+		//add file to zip
 		fileNameSplit := strings.Split(fileInfo.Key, "/")
 		fileName := fileInfo.Key
 		if len(fileNameSplit) > 0 {
@@ -108,6 +112,8 @@ func zipFiles(s3Config *s3Config, s3ObjectKeyPrefix string, zipName string, file
 		if err != nil {
 			return "", 0, fmt.Errorf("Cannot add file to zip archive: %s", err)
 		}
+
+		s3File.Close()
 	}
 
 	zippingUpDuration := time.Since(startTime)
