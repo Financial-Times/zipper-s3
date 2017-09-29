@@ -25,7 +25,7 @@ spec:
         - name: S3_CONTENT_FOLDER
           value: "unarchived"
         - name: MAX_NO_OF_GOROUTINES
-          value: 6
+          value: "6"
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
