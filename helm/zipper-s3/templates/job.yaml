@@ -23,7 +23,9 @@ spec:
         - name: BUCKET_NAME
           value: "com.ft.universalpublishing.enrichedcontentdata"
         - name: S3_CONTENT_FOLDER
-          value: "test"
+          value: "unarchived"
+        - name: MAX_NO_OF_GOROUTINES
+          value: 6
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
