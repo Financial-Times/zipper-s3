@@ -1,6 +1,0 @@
-*.iml
-.idea
-vendor/*/
-.project
-.vscode
-.DS_Store
