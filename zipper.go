@@ -11,7 +11,10 @@ import (
 	"time"
 )
 
-const dateFormat = "2006-01-02"
+const (
+	dateFormat = "2006-01-02"
+	fileRemovedS3ErrmSG = "The specified key does not exist."
+)
 
 var dateRegexp = regexp.MustCompile(`(19|20)\d\d-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])`)
 
@@ -26,7 +29,7 @@ func zipAndUploadFiles(s3Config *s3Config, s3ObjectKeyPrefix string, zipName str
 	defer os.Remove(tempZipFileName)
 
 	if err != nil {
-		errsCh <- err
+		errsCh <- fmt.Errorf("Zip creation failed for zip with name %s. Error was: %s", zipName, err)
 		return
 	}
 
@@ -88,6 +91,11 @@ func zipFiles(s3Config *s3Config, s3ObjectKeyPrefix string, zipName string, file
 
 		fileInfo, err := s3File.Stat()
 		if err != nil {
+			if err.Error() == fileRemovedS3ErrmSG {
+				infoLogger.Printf("File with name %s was deleted since the zip up process started for zip %s", s3Object.Key, zipName)
+				continue
+			}
+
 			return "", 0, fmt.Errorf("Cannot download file with name %s from s3: %s", s3Object.Key, err)
 		}
 
