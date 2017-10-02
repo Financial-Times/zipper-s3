@@ -1,0 +1,42 @@
+##this is an example deployment.yaml that should be customized in order to meet the configuration for app k8s deployment
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Values.job.name }}
+  labels:
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}" 
+    visualize: "true" 
+    app: {{ .Values.job.name }}
+spec:
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.job.name }}
+        visualize: "true" 
+    spec:
+      containers: 
+      - name: {{ .Values.job.name }}
+        image: "{{ .Values.image.repository }}:{{ .Chart.Version }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        env:
+        - name: BUCKET_NAME
+          value: "com.ft.universalpublishing.enrichedcontentdata"
+        - name: S3_CONTENT_FOLDER
+          value: "unarchived"
+        - name: MAX_NO_OF_GOROUTINES
+          value: "6"
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: global-secrets
+              key: aws.access_key_id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: global-secrets
+              key: aws.secret_access_key
+        resources: 
+{{ toYaml .Values.resources | indent 12 }}
+      restartPolicy: Never
+
