@@ -73,12 +73,26 @@ func main() {
 			os.Exit(1)
 		}
 
-		s3Config := newS3Config(s3Client, *bucketName)
+		s3Config := newS3Config(s3Client, *bucketName, *s3ContentFolder)
+
+		startTime := time.Now()
+		go func() {
+			for {
+				infoLogger.Printf("heartbeat [elapsed time: %s]", time.Since(startTime))
+				time.Sleep(30 * time.Second)
+			}
+		}()
+
+		infoLogger.Print("Starting fileKeys retrieval from s3..")
+		fileKeys, totalNumberOfFiles, err := s3Config.getFileKeys()
+		if err != nil {
+			errorLogger.Printf("Cannot get file keys from s3, error was: %s", err)
+		}
+		infoLogger.Printf("Finished fileKeys retrieval from s3. There are %d files", totalNumberOfFiles)
 
 		errsCh := make(chan error)
 		//zip files on a per year basis
 		currentYear := time.Now().Year()
-		startTime := time.Now()
 
 		concurrentGoroutines := make(chan struct{}, *maxNoOfGoroutines)
 		// Fill the dummy channel with maxNbConcurrentGoroutines empty struct.
@@ -104,24 +118,17 @@ func main() {
 			waitForAllJobs <- true
 		}()
 
-		go func() {
-			for {
-				infoLogger.Printf("heartbeat [elapsed time: %s]", time.Since(startTime))
-				time.Sleep(30 * time.Second)
-			}
-		}()
-
 		for year := *yearToStart; year <= currentYear; year++ {
 			infoLogger.Printf("Zipping up files from year %d waiting to launch!", year)
 			<-concurrentGoroutines
-			go zipAndUploadFiles(s3Config, *s3ContentFolder, fmt.Sprintf("FT-archive-%d.zip", year), isContentFromProvidedYear, done, errsCh, year)
+			go zipAndUploadFiles(s3Config, fmt.Sprintf("FT-archive-%d.zip", year), isContentFromProvidedYear, done, errsCh, year, fileKeys)
 		}
 
 		//wait for last archive to be finished.
 		<-done
 
 		//zip files for last 30 days
-		go zipAndUploadFiles(s3Config, *s3ContentFolder, "FT-archive-last-30-days.zip", isContentLessThanThirtyDaysBefore, done, errsCh, 0)
+		go zipAndUploadFiles(s3Config, "FT-archive-last-30-days.zip", isContentLessThanThirtyDaysBefore, done, errsCh, 0, fileKeys)
 
 		go func() {
 			err = <-errsCh

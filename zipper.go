@@ -6,26 +6,23 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"regexp"
 	"strings"
 	"time"
 )
 
 const (
 	dateFormat = "2006-01-02"
-	fileRemovedS3ErrmSG = "The specified key does not exist."
+	fileRemovedS3ErrMsg = "The specified key does not exist."
 )
-
-var dateRegexp = regexp.MustCompile(`(19|20)\d\d-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])`)
 
 type fileSelector func(year int, s3ObjectKey string) (bool, error)
 
-func zipAndUploadFiles(s3Config *s3Config, s3ObjectKeyPrefix string, zipName string, fileSelectorFn fileSelector, done chan bool, errsCh chan error, year int) {
+func zipAndUploadFiles(s3Config *s3Config, zipName string, fileSelectorFn fileSelector, done chan bool, errsCh chan error, year int, fileKeys []string) {
 	defer func() {
 		done <- true
 	}()
 
-	tempZipFileName, noOfZippedFiles, err := zipFiles(s3Config, s3ObjectKeyPrefix, zipName, fileSelectorFn, year)
+	tempZipFileName, noOfZippedFiles, err := zipFiles(s3Config, zipName, fileSelectorFn, year, fileKeys)
 	defer os.Remove(tempZipFileName)
 
 	if err != nil {
@@ -34,7 +31,7 @@ func zipAndUploadFiles(s3Config *s3Config, s3ObjectKeyPrefix string, zipName str
 	}
 
 	if noOfZippedFiles == 0 {
-		warnLogger.Printf("There is no content file on S3 to be added to archive with name %s. The s3 file prefix that has been used is %s", zipName, s3ObjectKeyPrefix)
+		warnLogger.Printf("There is no content file on S3 to be added to archive with name %s. The s3 file prefix that has been used is %s", zipName, s3Config.objectkeyPrefix)
 		return
 	}
 
@@ -47,7 +44,7 @@ func zipAndUploadFiles(s3Config *s3Config, s3ObjectKeyPrefix string, zipName str
 	return
 }
 
-func zipFiles(s3Config *s3Config, s3ObjectKeyPrefix string, zipName string, fileSelectorFn fileSelector, year int) (string, int, error) {
+func zipFiles(s3Config *s3Config, zipName string, fileSelectorFn fileSelector, year int, fileKeys []string) (string, int, error) {
 	infoLogger.Printf("Starting zip creation process for archive with name %s", zipName)
 	startTime := time.Now()
 
@@ -63,17 +60,12 @@ func zipFiles(s3Config *s3Config, s3ObjectKeyPrefix string, zipName string, file
 	defer zipWriter.Close()
 	infoLogger.Printf("Starting to zip files into archive with name %s", zipName)
 	noOfZippedFiles := 0
-	s3ListObjectsChannel := s3Config.client.ListObjects(s3Config.bucketName, s3ObjectKeyPrefix, true, doneCh)
 
-	for s3Object := range s3ListObjectsChannel {
-		if s3Object.Err != nil {
-			return "", 0, fmt.Errorf("Error while receiving objectInfo: %s", s3Object.Err)
-		}
-
+	for _, s3ObjectKey := range fileKeys {
 		if fileSelectorFn != nil {
-			selectFile, err := fileSelectorFn(year, s3Object.Key)
+			selectFile, err := fileSelectorFn(year, s3ObjectKey)
 			if err != nil {
-				errorLogger.Printf("Cannot select S3 object with key %s. Error was: %s", s3Object.Key, err)
+				errorLogger.Printf("Cannot select S3 object with key %s. Error was: %s", s3ObjectKey, err)
 				continue
 			}
 
@@ -84,19 +76,19 @@ func zipFiles(s3Config *s3Config, s3ObjectKeyPrefix string, zipName string, file
 
 		noOfZippedFiles++
 
-		s3File, err := s3Config.downloadFile(s3Object.Key, 3)
+		s3File, err := s3Config.downloadFile(s3ObjectKey, 3)
 		if err != nil {
-			return "", 0, fmt.Errorf("Cannot download file with name %s from s3: %s", s3Object.Key, err)
+			return "", 0, fmt.Errorf("Cannot download file with name %s from s3: %s", s3ObjectKey, err)
 		}
 
 		fileInfo, err := s3File.Stat()
 		if err != nil {
-			if err.Error() == fileRemovedS3ErrmSG {
-				infoLogger.Printf("File with name %s was deleted since the zip up process started for zip %s", s3Object.Key, zipName)
+			if err.Error() == fileRemovedS3ErrMsg {
+				infoLogger.Printf("File with name %s was deleted since the zip up process started for zip %s", s3ObjectKey, zipName)
 				continue
 			}
 
-			return "", 0, fmt.Errorf("Cannot download file with name %s from s3: %s", s3Object.Key, err)
+			return "", 0, fmt.Errorf("Cannot download file with name %s from s3: %s", s3ObjectKey, err)
 		}
 
 		//add file to zip
