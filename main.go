@@ -10,6 +10,12 @@ import (
 
 func main() {
 	app := cli.App("Custom Zipper", "Zips files from S3")
+	isAppEnabled := app.Bool(cli.BoolOpt{
+		Name:   "is-enabled",
+		Value:  false,
+		Desc:   "Flag representing whether the app should run.",
+		EnvVar: "IS_ENABLED",
+	})
 	maxNoOfGoroutines := app.Int(cli.IntOpt{
 		Name:   "max-no-of-goroutines",
 		Value:  3,
@@ -54,7 +60,13 @@ func main() {
 
 	app.Action = func() {
 		initLogs(os.Stdout, os.Stdout, os.Stderr)
-		infoLogger.Printf("Starting app with parameters: [s3-content-folder=%s], [bucket-name=%s] [year-to-start=%d] [max-no-of-goroutines=%d]", *s3ContentFolder, *bucketName, *yearToStart, *maxNoOfGoroutines)
+		infoLogger.Printf("Starting app with parameters: [s3-content-folder=%s], [bucket-name=%s] [year-to-start=%d] [max-no-of-goroutines=%d] [is-enabled: %t]", *s3ContentFolder, *bucketName, *yearToStart, *maxNoOfGoroutines, *isAppEnabled)
+
+		if !*isAppEnabled {
+			infoLogger.Print("App is not enabled. Please enable it by setting the IS_ENABLED env var.")
+			return
+		}
+
 		s3Client, err := minio.New(*s3Domain, *awsAccessKey, *awsSecretKey, true)
 		if err != nil {
 			errorLogger.Printf("error while creating s3client: %s", err.Error())
