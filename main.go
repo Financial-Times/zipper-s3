@@ -114,14 +114,14 @@ func main() {
 		for year := *yearToStart; year <= currentYear; year++ {
 			infoLogger.Printf("Zipping up files from year %d waiting to launch!", year)
 			<-concurrentGoroutines
-			go zipAndUploadFiles(s3Config, fmt.Sprintf("%s/%d", *s3ContentFolder, year), fmt.Sprintf("FT-archive-%d.zip", year), nil, done, errsCh)
+			go zipAndUploadFiles(s3Config, *s3ContentFolder, fmt.Sprintf("FT-archive-%d.zip", year), isContentFromProvidedYear, done, errsCh, year)
 		}
 
 		//wait for last archive to be finished.
 		<-done
 
 		//zip files for last 30 days
-		go zipAndUploadFiles(s3Config, *s3ContentFolder, "FT-archive-last-30-days.zip", isContentLessThanThirtyDaysBefore, done, errsCh)
+		go zipAndUploadFiles(s3Config, *s3ContentFolder, "FT-archive-last-30-days.zip", isContentLessThanThirtyDaysBefore, done, errsCh, 0)
 
 		go func() {
 			err = <-errsCh

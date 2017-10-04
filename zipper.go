@@ -18,14 +18,14 @@ const (
 
 var dateRegexp = regexp.MustCompile(`(19|20)\d\d-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])`)
 
-type fileSelector func(s3ObjectKey string) (bool, error)
+type fileSelector func(year int, s3ObjectKey string) (bool, error)
 
-func zipAndUploadFiles(s3Config *s3Config, s3ObjectKeyPrefix string, zipName string, fileSelectorFn fileSelector, done chan bool, errsCh chan error) {
+func zipAndUploadFiles(s3Config *s3Config, s3ObjectKeyPrefix string, zipName string, fileSelectorFn fileSelector, done chan bool, errsCh chan error, year int) {
 	defer func() {
 		done <- true
 	}()
 
-	tempZipFileName, noOfZippedFiles, err := zipFiles(s3Config, s3ObjectKeyPrefix, zipName, fileSelectorFn)
+	tempZipFileName, noOfZippedFiles, err := zipFiles(s3Config, s3ObjectKeyPrefix, zipName, fileSelectorFn, year)
 	defer os.Remove(tempZipFileName)
 
 	if err != nil {
@@ -47,7 +47,7 @@ func zipAndUploadFiles(s3Config *s3Config, s3ObjectKeyPrefix string, zipName str
 	return
 }
 
-func zipFiles(s3Config *s3Config, s3ObjectKeyPrefix string, zipName string, fileSelectorFn fileSelector) (string, int, error) {
+func zipFiles(s3Config *s3Config, s3ObjectKeyPrefix string, zipName string, fileSelectorFn fileSelector, year int) (string, int, error) {
 	infoLogger.Printf("Starting zip creation process for archive with name %s", zipName)
 	startTime := time.Now()
 
@@ -71,9 +71,9 @@ func zipFiles(s3Config *s3Config, s3ObjectKeyPrefix string, zipName string, file
 		}
 
 		if fileSelectorFn != nil {
-			selectFile, err := fileSelectorFn(s3Object.Key)
+			selectFile, err := fileSelectorFn(year, s3Object.Key)
 			if err != nil {
-				errorLogger.Printf("Cannot select S3 object. Error was: %s", err)
+				errorLogger.Printf("Cannot select S3 object with key %s. Error was: %s", s3Object.Key, err)
 				continue
 			}
 
@@ -134,17 +134,47 @@ func isDateLessThanThirtyDaysBefore(date time.Time) bool {
 	return time.Since(date) < thirtyDays
 }
 
-func isContentLessThanThirtyDaysBefore(s3ObjectKey string) (bool, error) {
-	//check if the date is less that thirty days ago.
-	match := dateRegexp.FindStringSubmatch(s3ObjectKey)
-	if len(match) < 1 {
-		return false, fmt.Errorf("Cannot parse date from s3 file name: %s", s3ObjectKey)
-	}
-
-	s3FileDate, err := time.Parse(dateFormat, match[0])
+func isContentFromProvidedYear(year int, s3ObjectKey string) (bool, error) {
+	s3ObjectDate, err := extractDateFromS3ObjectKey(s3ObjectKey)
 	if err != nil {
-		return false, fmt.Errorf("Cannot parse date from s3 file name, error was: %s", err)
+		return false, fmt.Errorf("Cannot extract date from file name %s, error was: %s", s3ObjectKey, err)
 	}
 
-	return isDateLessThanThirtyDaysBefore(s3FileDate), nil
+	if year == s3ObjectDate.Year() {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+func isContentLessThanThirtyDaysBefore(year int, s3ObjectKey string) (bool, error) {
+	s3ObjectDate, err := extractDateFromS3ObjectKey(s3ObjectKey)
+	if err != nil {
+		return false, fmt.Errorf("Cannot extract date from file name %s, error was: %s", s3ObjectKey, err)
+	}
+
+	return isDateLessThanThirtyDaysBefore(s3ObjectDate), nil
+}
+
+func extractDateFromS3ObjectKey(s3ObjectKey string) (time.Time, error) {
+	s3ObjectKeySplit := strings.Split(s3ObjectKey, "/")
+	if len(s3ObjectKeySplit) < 1 {
+		return time.Now(), fmt.Errorf("Cannot extract date from s3Objectkey: %s", s3ObjectKey)
+	}
+
+	fileName := strings.TrimSuffix(s3ObjectKeySplit[len(s3ObjectKeySplit) - 1], ".json")
+	fileNameSplit := strings.Split(fileName, "_")
+
+	if len(fileNameSplit) < 2 {
+		return time.Now(), fmt.Errorf("Cannot extract date from file name: %s", fileName)
+	}
+
+	dateString := fileNameSplit[len(fileNameSplit) - 1]
+
+	date, err := time.Parse(dateFormat, dateString)
+	if err != nil {
+		return time.Now(), fmt.Errorf("Cannot parse date from s3 file key %s, error was: %s", s3ObjectKey, err)
+	}
+
+	return date, nil
 }
