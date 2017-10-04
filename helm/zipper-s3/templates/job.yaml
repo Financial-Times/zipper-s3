@@ -36,6 +36,11 @@ spec:
             secretKeyRef:
               name: global-secrets
               key: aws.secret_access_key
+        - name: IS_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              name: global-config
+              key: zipper.s3.isenabled
         resources: 
 {{ toYaml .Values.resources | indent 12 }}
       restartPolicy: Never
