@@ -8,6 +8,7 @@ import (
 	"os"
 	"github.com/stretchr/testify/assert"
 	"errors"
+	"io/ioutil"
 )
 
 type mockS3Client struct {

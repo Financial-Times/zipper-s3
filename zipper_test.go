@@ -139,3 +139,11 @@ func TestIsContentFromProvidedYearProvidedKeyIsInvalid(t *testing.T) {
 
 	assert.NotNil(t, err)
 }
+
+func TestZipFilesHappyFlow(t *testing.T) {
+	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "")
+
+	_, _, err := zipFiles(s3Config, "yearly-archive-2017.zip", nil, 2017, []string{"invalid-file"})
+
+	assert.NotNil(t, err)
+}
