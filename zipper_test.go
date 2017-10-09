@@ -31,10 +31,10 @@ func TestIsDateLessThanThirtyDaysBeforeFortyDaysBefore(t *testing.T) {
 func TestIsContentLessThanThirtyDaysBefore(t *testing.T) {
 	currentDate := time.Now()
 	previousDay := currentDate.Add(-24 * time.Hour)
-	previousDayString := previousDay.Format("2006-01-02")
-	fileNameLessThanThirtyDaysBefore := fmt.Sprintf("%s%s", previousDayString, contentUUID)
+	previousDayString := previousDay.Format(dateFormat)
+	fileNameLessThanThirtyDaysBefore := fmt.Sprintf("test/%s_%s.json", contentUUID, previousDayString)
 
-	contentLessThanThirtyDaysBefore, err := isContentLessThanThirtyDaysBefore(fileNameLessThanThirtyDaysBefore)
+	contentLessThanThirtyDaysBefore, err := isContentLessThanThirtyDaysBefore(0, fileNameLessThanThirtyDaysBefore)
 
 	assert.Nil(t, err)
 	assert.True(t, contentLessThanThirtyDaysBefore)
@@ -43,17 +43,17 @@ func TestIsContentLessThanThirtyDaysBefore(t *testing.T) {
 func TestIsContentMoreThanThirtyDaysBefore(t *testing.T) {
 	currentDate := time.Now()
 	previousDay := currentDate.Add(-24 * 40 * time.Hour)
-	previousDayString := previousDay.Format("2006-01-02")
-	fileNameLessThanThirtyDaysBefore := fmt.Sprintf("%s%s", previousDayString, contentUUID)
+	previousDayString := previousDay.Format(dateFormat)
+	fileNameLessThanThirtyDaysBefore := fmt.Sprintf("test/%s_%s.json", contentUUID, previousDayString)
 
-	contentLessThanThirtyDaysBefore, err := isContentLessThanThirtyDaysBefore(fileNameLessThanThirtyDaysBefore)
+	contentLessThanThirtyDaysBefore, err := isContentLessThanThirtyDaysBefore(0, fileNameLessThanThirtyDaysBefore)
 
 	assert.Nil(t, err)
 	assert.False(t, contentLessThanThirtyDaysBefore)
 }
 
 func TestIsContentLessThanThirtyDaysBeforeInvalidFileName(t *testing.T) {
-	_, err := isContentLessThanThirtyDaysBefore(contentUUID)
+	_, err := isContentLessThanThirtyDaysBefore(0, contentUUID)
 
 	assert.NotNil(t, err)
 }
@@ -61,20 +61,81 @@ func TestIsContentLessThanThirtyDaysBeforeInvalidFileName(t *testing.T) {
 func TestIsContentMoreThanThirtyDaysBeforeInvalidDateFormat(t *testing.T) {
 	currentDate := time.Now()
 	previousDay := currentDate.Add(-24 * 40 * time.Hour)
-	previousDayString := previousDay.Format("01-02-2016")
+	previousDayString := previousDay.Format(dateFormat)
 	fileNameLessThanThirtyDaysBefore := fmt.Sprintf("%s%s", previousDayString, contentUUID)
 
-	_, err := isContentLessThanThirtyDaysBefore(fileNameLessThanThirtyDaysBefore)
+	_, err := isContentLessThanThirtyDaysBefore(0, fileNameLessThanThirtyDaysBefore)
 
 	assert.NotNil(t, err)
 }
 
 func TestZipFilesNoFiles(t *testing.T) {
 	initLogs(os.Stdout, os.Stdout, os.Stderr)
-	s3Config := newS3Config(&mockS3Client{}, "test-bucket")
+	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "")
 
-	_, noOfZippedFiles, err := zipFiles(s3Config, "", "", nil)
+	_, noOfZippedFiles, err := zipFiles(s3Config, "", nil, 0, []string{})
 
 	assert.Nil(t, err)
 	assert.Zero(t, noOfZippedFiles)
+}
+
+func TestExtractDateFromS3ObjectKeyValidObjectKey(t *testing.T) {
+	s3ObjectKey := fmt.Sprintf("%s_2016-10-30.json", contentUUID)
+
+	date, err := extractDateFromS3ObjectKey(s3ObjectKey)
+
+	assert.Nil(t, err)
+	assert.Equal(t, 2016, date.Year())
+	assert.Equal(t, time.October, date.Month())
+	assert.Equal(t, 30, date.Day())
+}
+
+func TestExtractDateFromS3ObjectKeyMissingDate(t *testing.T) {
+	s3ObjectKey := fmt.Sprintf("%s.json", contentUUID)
+
+	_, err := extractDateFromS3ObjectKey(s3ObjectKey)
+
+	assert.NotNil(t, err)
+}
+
+func TestExtractDateFromS3ObjectKeyMissingUUID(t *testing.T) {
+	s3ObjectKey := "test/2016-10-20.json"
+
+	_, err := extractDateFromS3ObjectKey(s3ObjectKey)
+
+	assert.NotNil(t, err)
+}
+
+func TestExtractDateFromS3ObjectKeyInvalidDateFormat(t *testing.T) {
+	s3ObjectKey := fmt.Sprintf("test/%s_20-10-2015.json", contentUUID)
+
+	_, err := extractDateFromS3ObjectKey(s3ObjectKey)
+
+	assert.NotNil(t, err)
+}
+
+func TestIsContentFromProvidedYearProvidedYearIsTheSame(t *testing.T) {
+	s3ObjectKey := fmt.Sprintf("%s_2016-10-30.json", contentUUID)
+
+	isContentFromProvidedYearFlag, err := isContentFromProvidedYear(2016, s3ObjectKey)
+
+	assert.Nil(t, err)
+	assert.True(t, isContentFromProvidedYearFlag)
+}
+
+func TestIsContentFromProvidedYearProvidedYearIsDifferent(t *testing.T) {
+	s3ObjectKey := fmt.Sprintf("%s_2016-10-30.json", contentUUID)
+
+	isContentFromProvidedYearFlag, err := isContentFromProvidedYear(2017, s3ObjectKey)
+
+	assert.Nil(t, err)
+	assert.False(t, isContentFromProvidedYearFlag)
+}
+
+func TestIsContentFromProvidedYearProvidedKeyIsInvalid(t *testing.T) {
+	s3ObjectKey := fmt.Sprintf("%s.json", contentUUID)
+
+	_, err := isContentFromProvidedYear(2017, s3ObjectKey)
+
+	assert.NotNil(t, err)
 }
