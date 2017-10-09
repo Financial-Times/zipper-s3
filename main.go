@@ -84,11 +84,11 @@ func main() {
 		}()
 
 		infoLogger.Print("Starting fileKeys retrieval from s3..")
-		fileKeys, totalNumberOfFiles, err := s3Config.getFileKeys()
+		fileKeys, err := s3Config.getFileKeys()
 		if err != nil {
 			errorLogger.Printf("Cannot get file keys from s3, error was: %s", err)
 		}
-		infoLogger.Printf("Finished fileKeys retrieval from s3. There are %d files", totalNumberOfFiles)
+		infoLogger.Printf("Finished fileKeys retrieval from s3. There are %d files", len(fileKeys))
 
 		errsCh := make(chan error)
 		//zip files on a per year basis

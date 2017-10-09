@@ -66,20 +66,17 @@ func (s3Config *s3Config) downloadFile(fileName string, noOfRetries int) (*minio
 	return obj, nil
 }
 
-func (s3Config *s3Config) getFileKeys() ([]string, uint64, error) {
+func (s3Config *s3Config) getFileKeys() ([]string, error) {
 	doneCh := make(chan struct{})
 	s3ListObjectsChannel := s3Config.client.ListObjects(s3Config.bucketName, s3Config.objectkeyPrefix, true, doneCh)
 	fileKeys := make([]string, 0)
-	var count uint64
-	count = 0
 	for s3Object := range s3ListObjectsChannel {
 		if s3Object.Err != nil {
-			return []string{}, 0, fmt.Errorf("Cannot get file info from s3, error was: %s", s3Object.Err)
+			return []string{}, fmt.Errorf("Cannot get file info from s3, error was: %s", s3Object.Err)
 		}
 
 		fileKeys = append(fileKeys, s3Object.Key)
-		count++
 	}
 
-	return fileKeys, count, nil
+	return fileKeys, nil
 }
