@@ -1,13 +1,20 @@
 package main
 
 import (
+	"fmt"
+	"github.com/Shopify/sarama"
 	"github.com/jawher/mow.cli"
 	"github.com/minio/minio-go"
+	log "github.com/sirupsen/logrus"
+	standardlog "log"
 	"os"
 	"time"
-	"fmt"
 )
 
+const (
+	last30DaysArchiveName="FT-archive-last-30-days.zip"
+	yearlyArchivesNameFormat="FT-archive-%d.zip"
+)
 func main() {
 	app := cli.App("Custom Zipper", "Zips files from S3")
 	isAppEnabled := app.Bool(cli.BoolOpt{
@@ -58,19 +65,31 @@ func main() {
 		EnvVar: "S3_CONTENT_FOLDER",
 	})
 
+	logDebug := app.Bool(cli.BoolOpt{
+		Name:   "logDebug",
+		Value:  false,
+		Desc:   `Flag which if it is set to true, the app will also output debug logs.`,
+		EnvVar: "LOG_DEBUG",
+	})
+
+	log.SetLevel(log.InfoLevel)
+
 	app.Action = func() {
-		initLogs(os.Stdout, os.Stdout, os.Stderr)
-		infoLogger.Printf("Starting app with parameters: [s3-content-folder=%s], [bucket-name=%s] [year-to-start=%d] [max-no-of-goroutines=%d] [is-enabled: %t]", *s3ContentFolder, *bucketName, *yearToStart, *maxNoOfGoroutines, *isAppEnabled)
+		if *logDebug {
+			sarama.Logger = standardlog.New(os.Stdout, "[sarama] ", standardlog.LstdFlags)
+			log.SetLevel(log.DebugLevel)
+		}
+
+		log.Infof("Starting app with parameters: [s3-content-folder=%s], [bucket-name=%s] [year-to-start=%d] [max-no-of-goroutines=%d] [is-enabled: %t]", *s3ContentFolder, *bucketName, *yearToStart, *maxNoOfGoroutines, *isAppEnabled)
 
 		if !*isAppEnabled {
-			infoLogger.Print("App is not enabled. Please enable it by setting the IS_ENABLED env var.")
+			log.Infof("App is not enabled. Please enable it by setting the IS_ENABLED env var.")
 			return
 		}
 
 		s3Client, err := minio.New(*s3Domain, *awsAccessKey, *awsSecretKey, true)
 		if err != nil {
-			errorLogger.Printf("error while creating s3client: %s", err.Error())
-			os.Exit(1)
+			log.WithError(err).Fatal("Cannot create S3 client")
 		}
 
 		s3Config := newS3Config(s3Client, *bucketName, *s3ContentFolder)
@@ -78,14 +97,14 @@ func main() {
 		startTime := time.Now()
 		go func() {
 			for {
-				infoLogger.Printf("heartbeat [elapsed time: %s]", time.Since(startTime))
+				log.Infof("heartbeat [elapsed time: %s]", time.Since(startTime))
 				time.Sleep(30 * time.Second)
 			}
 		}()
 
 		fileKeys, err := s3Config.getFileKeys()
 		if err != nil {
-			errorLogger.Printf("Cannot get file keys from s3, error was: %s", err)
+			log.WithError(err).Fatal("Cannot get file keys from s3")
 		}
 
 		errsCh := make(chan error)
@@ -117,22 +136,21 @@ func main() {
 		}()
 
 		for year := *yearToStart; year <= currentYear; year++ {
-			infoLogger.Printf("Zipping up files from year %d waiting to launch!", year)
+			log.Infof("Zipping up files from year %d waiting to launch!", year)
 			<-concurrentGoroutines
-			go zipAndUploadFiles(s3Config, fmt.Sprintf("FT-archive-%d.zip", year), isContentFromProvidedYear, done, errsCh, year, fileKeys)
+			go zipAndUploadFiles(s3Config, fmt.Sprintf(yearlyArchivesNameFormat, year), isContentFromProvidedYear, done, errsCh, year, fileKeys)
 		}
 
 		//wait for last archive to be finished.
 		<-done
 
 		//zip files for last 30 days
-		go zipAndUploadFiles(s3Config, "FT-archive-last-30-days.zip", isContentLessThanThirtyDaysBefore, done, errsCh, 0, fileKeys)
+		go zipAndUploadFiles(s3Config, last30DaysArchiveName, isContentLessThanThirtyDaysBefore, done, errsCh, 0, fileKeys)
 
 		go func() {
 			err = <-errsCh
 			if err != nil {
-				errorLogger.Printf("Zip creation process finished with error: %s", err)
-				os.Exit(1)
+				log.WithError(err).Fatal("Zip creation process finished with error")
 			}
 		}()
 
@@ -140,12 +158,19 @@ func main() {
 		<-waitForAllJobs
 
 		zippingUpDuration := time.Since(startTime)
-		infoLogger.Printf("Finished creating all the archives. Total duration is: %s", zippingUpDuration)
+		log.Infof("Finished creating all the archives. Total duration is: %s", zippingUpDuration)
 	}
 
 	err := app.Run(os.Args)
 	if err != nil {
-		errorLogger.Printf("Error while running app [%v]", err)
-		os.Exit(1)
+		log.WithError(err).Fatal("Error while running app")
 	}
+}
+
+func init() {
+	f := &log.JSONFormatter{
+		TimestampFormat: time.RFC3339Nano,
+	}
+
+	log.SetFormatter(f)
 }

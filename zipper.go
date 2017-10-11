@@ -3,6 +3,7 @@ package main
 import (
 	"archive/zip"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"io"
 	"io/ioutil"
 	"os"
@@ -11,7 +12,7 @@ import (
 )
 
 const (
-	dateFormat = "2006-01-02"
+	dateFormat          = "2006-01-02"
 	fileRemovedS3ErrMsg = "The specified key does not exist."
 )
 
@@ -22,7 +23,7 @@ func zipAndUploadFiles(s3Config *s3Config, zipName string, fileSelectorFn fileSe
 		done <- true
 	}()
 
-	tempZipFileName, noOfZippedFiles, err := zipFiles(s3Config, zipName, fileSelectorFn, year, fileKeys)
+	tempZipFileName, noOfZippedFiles, err := createZipFiles(s3Config, zipName, fileSelectorFn, year, fileKeys)
 	defer os.Remove(tempZipFileName)
 
 	if err != nil {
@@ -31,7 +32,7 @@ func zipAndUploadFiles(s3Config *s3Config, zipName string, fileSelectorFn fileSe
 	}
 
 	if noOfZippedFiles == 0 {
-		warnLogger.Printf("There is no content file on S3 to be added to archive with name %s. The s3 file prefix that has been used is %s", zipName, s3Config.objectkeyPrefix)
+		log.Warnf("There is no content file on S3 to be added to archive with name %s. The s3 file prefix that has been used is %s", zipName, s3Config.objectkeyPrefix)
 		return
 	}
 
@@ -44,8 +45,8 @@ func zipAndUploadFiles(s3Config *s3Config, zipName string, fileSelectorFn fileSe
 	return
 }
 
-func zipFiles(s3Config *s3Config, zipName string, fileSelectorFn fileSelector, year int, fileKeys []string) (string, int, error) {
-	infoLogger.Printf("Starting zip creation process for archive with name %s", zipName)
+func createZipFiles(s3Config *s3Config, zipName string, fileSelectorFn fileSelector, year int, fileKeys []string) (string, int, error) {
+	log.Infof("Starting zip creation process for archive with name %s", zipName)
 	startTime := time.Now()
 
 	doneCh := make(chan struct{})
@@ -58,18 +59,18 @@ func zipFiles(s3Config *s3Config, zipName string, fileSelectorFn fileSelector, y
 	}
 	zipWriter := zip.NewWriter(zipFile)
 	defer zipWriter.Close()
-	infoLogger.Printf("Starting to zip files into archive with name %s", zipName)
+	log.Infof("Starting to zip files into archive with name %s", zipName)
 	noOfZippedFiles := 0
 
 	for _, s3ObjectKey := range fileKeys {
 		if fileSelectorFn != nil {
-			selectFile, err := fileSelectorFn(year, s3ObjectKey)
+			isEligible, err := fileSelectorFn(year, s3ObjectKey)
 			if err != nil {
-				errorLogger.Printf("Cannot select S3 object with key %s. Error was: %s", s3ObjectKey, err)
+				log.WithError(err).Errorf("Cannot select S3 object with key %s.", s3ObjectKey)
 				continue
 			}
 
-			if !selectFile {
+			if !isEligible {
 				continue
 			}
 		}
@@ -84,7 +85,7 @@ func zipFiles(s3Config *s3Config, zipName string, fileSelectorFn fileSelector, y
 		fileInfo, err := s3File.Stat()
 		if err != nil {
 			if err.Error() == fileRemovedS3ErrMsg {
-				infoLogger.Printf("File with name %s was deleted since the zip up process started for zip %s", s3ObjectKey, zipName)
+				log.Infof("File with name %s was deleted since the zip up process started for zip %s", s3ObjectKey, zipName)
 				continue
 			}
 
@@ -95,7 +96,7 @@ func zipFiles(s3Config *s3Config, zipName string, fileSelectorFn fileSelector, y
 		fileNameSplit := strings.Split(fileInfo.Key, "/")
 		fileName := fileInfo.Key
 		if len(fileNameSplit) > 0 {
-			fileName = fileNameSplit[len(fileNameSplit) - 1]
+			fileName = fileNameSplit[len(fileNameSplit)-1]
 		}
 
 		h := &zip.FileHeader{
@@ -117,7 +118,7 @@ func zipFiles(s3Config *s3Config, zipName string, fileSelectorFn fileSelector, y
 	}
 
 	zippingUpDuration := time.Since(startTime)
-	infoLogger.Printf("Finished zip creation process for zip with name %s. Duration: %s. Number of zipped files is: %d", zipName, zippingUpDuration, noOfZippedFiles)
+	log.Infof("Finished zip creation process for zip with name %s. Duration: %s. Number of zipped files is: %d", zipName, zippingUpDuration, noOfZippedFiles)
 	return zipFile.Name(), noOfZippedFiles, nil
 }
 
@@ -154,14 +155,14 @@ func extractDateFromS3ObjectKey(s3ObjectKey string) (time.Time, error) {
 		return time.Now(), fmt.Errorf("Cannot extract date from s3Objectkey: %s", s3ObjectKey)
 	}
 
-	fileName := strings.TrimSuffix(s3ObjectKeySplit[len(s3ObjectKeySplit) - 1], ".json")
+	fileName := strings.TrimSuffix(s3ObjectKeySplit[len(s3ObjectKeySplit)-1], ".json")
 	fileNameSplit := strings.Split(fileName, "_")
 
 	if len(fileNameSplit) < 2 {
 		return time.Now(), fmt.Errorf("Cannot extract date from file name: %s", fileName)
 	}
 
-	dateString := fileNameSplit[len(fileNameSplit) - 1]
+	dateString := fileNameSplit[len(fileNameSplit)-1]
 
 	date, err := time.Parse(dateFormat, dateString)
 	if err != nil {

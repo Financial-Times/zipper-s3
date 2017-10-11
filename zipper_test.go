@@ -3,12 +3,11 @@ package main
 import (
 	"fmt"
 	"github.com/stretchr/testify/assert"
-	"os"
 	"testing"
 	"time"
 )
 
-const contentUUID = "00544bc0-679f-11e7-9d4e-ae21227e5abf.json"
+const contentUUID = "00544bc0-679f-11e7-9d4e-ae21227e5abf"
 
 func TestIsDateLessThanThirtyDaysBeforeOneHourBefore(t *testing.T) {
 	currentDate := time.Now()
@@ -70,10 +69,9 @@ func TestIsContentMoreThanThirtyDaysBeforeInvalidDateFormat(t *testing.T) {
 }
 
 func TestZipFilesNoFiles(t *testing.T) {
-	initLogs(os.Stdout, os.Stdout, os.Stderr)
 	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "")
 
-	_, noOfZippedFiles, err := zipFiles(s3Config, "", nil, 0, []string{})
+	_, noOfZippedFiles, err := createZipFiles(s3Config, "", nil, 0, []string{})
 
 	assert.Nil(t, err)
 	assert.Zero(t, noOfZippedFiles)
@@ -143,7 +141,7 @@ func TestIsContentFromProvidedYearProvidedKeyIsInvalid(t *testing.T) {
 func TestZipFilesHappyFlow(t *testing.T) {
 	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "")
 
-	_, _, err := zipFiles(s3Config, "yearly-archive-2017.zip", nil, 2017, []string{"invalid-file"})
+	_, _, err := createZipFiles(s3Config, "yearly-archive-2017.zip", nil, 2017, []string{"invalid-file"})
 
 	assert.NotNil(t, err)
 }

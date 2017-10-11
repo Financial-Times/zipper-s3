@@ -24,17 +24,15 @@ Download the source code, dependencies and test dependencies:
 
 2. Run the binary (using the `help` flag to see the available optional arguments):
     Environment variables:
+    - `IS_ENABLED` flag which if it is true, the app will run the zip creation process, otherwise will stop immediately after start.
+    - `MAX_NO_OF_GOROUTINES` the maximum number of goroutines which is used to zip files
     - `YEAR_TO_START` the app will create yearly zips starting from provided year. Defaults to 1995, when the first FT article has been published. 
     - `AWS_ACCESS_KEY_ID` S3 access key
     - `AWS_SECRET_ACCESS_KEY` S3 secret key
     - `BUCKET_NAME` bucket name of content
     - `S3_DOMAIN` S3 domain of content
-    - `S3_CONTENT_FOLDER` name of the folder that json files with the content are stored in.
-
-        $GOPATH/bin/zipper-s3 [--help]
-        
-
-
+    - `S3_CONTENT_FOLDER` name of the folder that json files with the content are stored in
+    - `LOG_DEBUG` flag which if it is set to true, the app will also output debug logs
 ## Build and deployment
 
 * Built by Docker Hub on merge to master: [coco/zipper-s3](https://hub.docker.com/r/coco/zipper-s3/)
