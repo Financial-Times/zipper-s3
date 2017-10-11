@@ -34,20 +34,20 @@ func newS3Config(s3Client s3Client, bucketName string, objectKeyPrefix string) *
 	}
 }
 
-func (s3Config *s3Config) uploadFile(localZipFileName string, s3ZipName string) error {
-	infoLogger.Printf("Uploading file %s to s3...", localZipFileName)
-	zipFileToBeUploaded, err := os.Open(localZipFileName)
+func (s3Config *s3Config) uploadFile(localFileName string, s3FileName string) error {
+	infoLogger.Printf("Uploading file %s to s3...", localFileName)
+	zipFileToBeUploaded, err := os.Open(localFileName)
 	if err != nil {
-		return fmt.Errorf("Could not open zip archive with name %s. Error was: %s", s3ZipName, err)
+		return fmt.Errorf("Could not open zip archive with name %s. Error was: %s", s3FileName, err)
 	}
 	defer zipFileToBeUploaded.Close()
 
-	_, err = s3Config.client.PutObject(s3Config.bucketName, fmt.Sprintf("yearly-archives/%s", s3ZipName), zipFileToBeUploaded, "application/octet-stream")
+	_, err = s3Config.client.PutObject(s3Config.bucketName, fmt.Sprintf("yearly-archives/%s", s3FileName), zipFileToBeUploaded, "application/octet-stream")
 	if err != nil {
-		return fmt.Errorf("Could not upload file with name %s to s3. Error was: %s", s3ZipName, err)
+		return fmt.Errorf("Could not upload file with name %s to s3. Error was: %s", s3FileName, err)
 	}
 
-	infoLogger.Printf("Finished uploading file %s to s3", localZipFileName)
+	infoLogger.Printf("Finished uploading file %s to s3", localFileName)
 	return nil
 }
 
@@ -67,6 +67,7 @@ func (s3Config *s3Config) downloadFile(fileName string, noOfRetries int) (*minio
 }
 
 func (s3Config *s3Config) getFileKeys() ([]string, error) {
+	infoLogger.Print("Starting fileKeys retrieval from s3..")
 	doneCh := make(chan struct{})
 	s3ListObjectsChannel := s3Config.client.ListObjects(s3Config.bucketName, s3Config.objectkeyPrefix, true, doneCh)
 	fileKeys := make([]string, 0)
@@ -78,5 +79,6 @@ func (s3Config *s3Config) getFileKeys() ([]string, error) {
 		fileKeys = append(fileKeys, s3Object.Key)
 	}
 
+	infoLogger.Printf("Finished fileKeys retrieval from s3. There are %d files", len(fileKeys))
 	return fileKeys, nil
 }

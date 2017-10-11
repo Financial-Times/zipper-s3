@@ -38,7 +38,7 @@ func zipAndUploadFiles(s3Config *s3Config, zipName string, fileSelectorFn fileSe
 	//upload zip file to s3
 	err = s3Config.uploadFile(tempZipFileName, zipName)
 	if err != nil {
-		errsCh <- fmt.Errorf("Cannot upload file to S3. Error was: %s", err)
+		errsCh <- fmt.Errorf("Cannot upload zip with name %s to S3. Error was: %s", tempZipFileName, err)
 	}
 
 	return
