@@ -12,9 +12,10 @@ import (
 )
 
 const (
-	last30DaysArchiveName="FT-archive-last-30-days.zip"
-	yearlyArchivesNameFormat="FT-archive-%d.zip"
+	last30DaysArchiveName    = "FT-archive-last-30-days.zip"
+	yearlyArchivesNameFormat = "FT-archive-%d.zip"
 )
+
 func main() {
 	app := cli.App("Custom Zipper", "Zips files from S3")
 	isAppEnabled := app.Bool(cli.BoolOpt{
@@ -65,6 +66,13 @@ func main() {
 		EnvVar: "S3_CONTENT_FOLDER",
 	})
 
+	s3ArchivesFolder := app.String(cli.StringOpt{
+		Name:   "s3-archives-folder",
+		Value:  "test-yearly-archives",
+		Desc:   "Name of the folder where the zip files will be placed.",
+		EnvVar: "S3_ARCHIVES_FOLDER",
+	})
+
 	logDebug := app.Bool(cli.BoolOpt{
 		Name:   "logDebug",
 		Value:  false,
@@ -92,7 +100,7 @@ func main() {
 			log.WithError(err).Fatal("Cannot create S3 client")
 		}
 
-		s3Config := newS3Config(s3Client, *bucketName, *s3ContentFolder)
+		s3Config := newS3Config(s3Client, *bucketName, *s3ContentFolder, *s3ArchivesFolder)
 
 		startTime := time.Now()
 		go func() {
@@ -138,14 +146,17 @@ func main() {
 		for year := *yearToStart; year <= currentYear; year++ {
 			log.Infof("Zipping up files from year %d waiting to launch!", year)
 			<-concurrentGoroutines
-			go zipAndUploadFiles(s3Config, fmt.Sprintf(yearlyArchivesNameFormat, year), isContentFromProvidedYear, done, errsCh, year, fileKeys)
+
+			zipConfig := newZipConfig(fmt.Sprintf(yearlyArchivesNameFormat, year), isContentFromProvidedYear, year, fileKeys)
+			go zipAndUploadFiles(s3Config, zipConfig, done, errsCh)
 		}
 
 		//wait for last archive to be finished.
 		<-done
 
 		//zip files for last 30 days
-		go zipAndUploadFiles(s3Config, last30DaysArchiveName, isContentLessThanThirtyDaysBefore, done, errsCh, 0, fileKeys)
+		zipConfig := newZipConfig(last30DaysArchiveName, isContentLessThanThirtyDaysBefore, 0, fileKeys)
+		go zipAndUploadFiles(s3Config, zipConfig, done, errsCh)
 
 		go func() {
 			err = <-errsCh

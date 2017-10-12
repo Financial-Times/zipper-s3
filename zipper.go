@@ -16,28 +16,44 @@ const (
 	fileRemovedS3ErrMsg = "The specified key does not exist."
 )
 
+type zipConfig struct {
+	zipName        string
+	fileSelectorFn fileSelector
+	year           int
+	fileKeys       []string
+}
+
 type fileSelector func(year int, s3ObjectKey string) (bool, error)
 
-func zipAndUploadFiles(s3Config *s3Config, zipName string, fileSelectorFn fileSelector, done chan bool, errsCh chan error, year int, fileKeys []string) {
+func newZipConfig(zipName string, fileSelectorFn fileSelector, year int, fileKeys []string) *zipConfig {
+	return &zipConfig{
+		zipName:        zipName,
+		fileSelectorFn: fileSelectorFn,
+		year:           year,
+		fileKeys:       fileKeys,
+	}
+}
+
+func zipAndUploadFiles(s3Config *s3Config, zipConfig *zipConfig, done chan bool, errsCh chan error) {
 	defer func() {
 		done <- true
 	}()
 
-	tempZipFileName, noOfZippedFiles, err := createZipFiles(s3Config, zipName, fileSelectorFn, year, fileKeys)
+	tempZipFileName, noOfZippedFiles, err := createZipFiles(s3Config, zipConfig)
 	defer os.Remove(tempZipFileName)
 
 	if err != nil {
-		errsCh <- fmt.Errorf("Zip creation failed for zip with name %s. Error was: %s", zipName, err)
+		errsCh <- fmt.Errorf("Zip creation failed for zip with name %s. Error was: %s", zipConfig.zipName, err)
 		return
 	}
 
 	if noOfZippedFiles == 0 {
-		log.Warnf("There is no content file on S3 to be added to archive with name %s. The s3 file prefix that has been used is %s", zipName, s3Config.objectkeyPrefix)
+		log.Warnf("There is no content file on S3 to be added to archive with name %s. The s3 file prefix that has been used is %s", zipConfig.zipName, s3Config.objectKeyPrefix)
 		return
 	}
 
 	//upload zip file to s3
-	err = s3Config.uploadFile(tempZipFileName, zipName)
+	err = s3Config.uploadFile(tempZipFileName, zipConfig.zipName)
 	if err != nil {
 		errsCh <- fmt.Errorf("Cannot upload zip with name %s to S3. Error was: %s", tempZipFileName, err)
 	}
@@ -45,26 +61,26 @@ func zipAndUploadFiles(s3Config *s3Config, zipName string, fileSelectorFn fileSe
 	return
 }
 
-func createZipFiles(s3Config *s3Config, zipName string, fileSelectorFn fileSelector, year int, fileKeys []string) (string, int, error) {
-	log.Infof("Starting zip creation process for archive with name %s", zipName)
+func createZipFiles(s3Config *s3Config, zipConfig *zipConfig) (string, int, error) {
+	log.Infof("Starting zip creation process for archive with name %s", zipConfig.zipName)
 	startTime := time.Now()
 
 	doneCh := make(chan struct{})
 	defer close(doneCh)
 
-	zipFile, err := ioutil.TempFile(os.TempDir(), zipName)
+	zipFile, err := ioutil.TempFile(os.TempDir(), zipConfig.zipName)
 	defer zipFile.Close()
 	if err != nil {
 		return "", 0, fmt.Errorf("Cannot create archive: %s", err)
 	}
 	zipWriter := zip.NewWriter(zipFile)
 	defer zipWriter.Close()
-	log.Infof("Starting to zip files into archive with name %s", zipName)
+	log.Infof("Starting to zip files into archive with name %s", zipConfig.zipName)
 	noOfZippedFiles := 0
 
-	for _, s3ObjectKey := range fileKeys {
-		if fileSelectorFn != nil {
-			isEligible, err := fileSelectorFn(year, s3ObjectKey)
+	for _, s3ObjectKey := range zipConfig.fileKeys {
+		if zipConfig.fileSelectorFn != nil {
+			isEligible, err := zipConfig.fileSelectorFn(zipConfig.year, s3ObjectKey)
 			if err != nil {
 				log.WithError(err).Errorf("Cannot select S3 object with key %s.", s3ObjectKey)
 				continue
@@ -85,7 +101,7 @@ func createZipFiles(s3Config *s3Config, zipName string, fileSelectorFn fileSelec
 		fileInfo, err := s3File.Stat()
 		if err != nil {
 			if err.Error() == fileRemovedS3ErrMsg {
-				log.Infof("File with name %s was deleted since the zip up process started for zip %s", s3ObjectKey, zipName)
+				log.Infof("File with name %s was deleted since the zip up process started for zip %s", s3ObjectKey, zipConfig.zipName)
 				continue
 			}
 
@@ -118,7 +134,7 @@ func createZipFiles(s3Config *s3Config, zipName string, fileSelectorFn fileSelec
 	}
 
 	zippingUpDuration := time.Since(startTime)
-	log.Infof("Finished zip creation process for zip with name %s. Duration: %s. Number of zipped files is: %d", zipName, zippingUpDuration, noOfZippedFiles)
+	log.Infof("Finished zip creation process for zip with name %s. Duration: %s. Number of zipped files is: %d", zipConfig.zipName, zippingUpDuration, noOfZippedFiles)
 	return zipFile.Name(), noOfZippedFiles, nil
 }
 

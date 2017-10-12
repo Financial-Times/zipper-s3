@@ -12,7 +12,14 @@ import (
 type s3Config struct {
 	client          s3Client
 	bucketName      string
-	objectkeyPrefix string
+	objectKeyPrefix string
+	archivesFolder  string
+}
+
+type s3Object interface {
+	Stat() (minio.ObjectInfo, error)
+	Close() error
+	Read(p []byte) (int, error)
 }
 
 type s3Client interface {
@@ -23,15 +30,16 @@ type s3Client interface {
 
 type s3 interface {
 	uploadFile(localZipFileName string, s3ZipName string) error
-	downloadFile(fileName string, noOfRetries int) (*minio.Object, error)
+	downloadFile(fileName string, noOfRetries int) (s3Object, error)
 	getFileKeys() ([]string, uint64, error)
 }
 
-func newS3Config(s3Client s3Client, bucketName string, objectKeyPrefix string) *s3Config {
+func newS3Config(s3Client s3Client, bucketName string, objectKeyPrefix string, archivesFolder string) *s3Config {
 	return &s3Config{
 		client:          s3Client,
 		bucketName:      bucketName,
-		objectkeyPrefix: objectKeyPrefix,
+		objectKeyPrefix: objectKeyPrefix,
+		archivesFolder:  archivesFolder,
 	}
 }
 
@@ -43,7 +51,7 @@ func (s3Config *s3Config) uploadFile(localFileName string, s3FileName string) er
 	}
 	defer zipFileToBeUploaded.Close()
 
-	_, err = s3Config.client.PutObject(s3Config.bucketName, fmt.Sprintf("yearly-archives/%s", s3FileName), zipFileToBeUploaded, "application/octet-stream")
+	_, err = s3Config.client.PutObject(s3Config.bucketName, fmt.Sprintf("%s/%s", s3Config.archivesFolder, s3FileName), zipFileToBeUploaded, "application/octet-stream")
 	if err != nil {
 		return fmt.Errorf("Could not upload file with name %s to s3. Error was: %s", s3FileName, err)
 	}
@@ -52,9 +60,9 @@ func (s3Config *s3Config) uploadFile(localFileName string, s3FileName string) er
 	return nil
 }
 
-func (s3Config *s3Config) downloadFile(fileName string, noOfRetries int) (*minio.Object, error) {
+func (s3Config *s3Config) downloadFile(fileName string, noOfRetries int) (s3Object, error) {
 	if noOfRetries == 0 {
-		return nil, fmt.Errorf("Cannot download file with name %s from s3.", fileName)
+		return nil, fmt.Errorf("Cannot download file with name %s from s3", fileName)
 	}
 
 	obj, err := s3Config.client.GetObject(s3Config.bucketName, fileName)
@@ -70,7 +78,7 @@ func (s3Config *s3Config) downloadFile(fileName string, noOfRetries int) (*minio
 func (s3Config *s3Config) getFileKeys() ([]string, error) {
 	log.Infof("Starting fileKeys retrieval from s3..")
 	doneCh := make(chan struct{})
-	s3ListObjectsChannel := s3Config.client.ListObjects(s3Config.bucketName, s3Config.objectkeyPrefix, true, doneCh)
+	s3ListObjectsChannel := s3Config.client.ListObjects(s3Config.bucketName, s3Config.objectKeyPrefix, true, doneCh)
 	fileKeys := make([]string, 0)
 	for s3Object := range s3ListObjectsChannel {
 		if s3Object.Err != nil {
