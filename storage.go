@@ -6,6 +6,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"io"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -83,6 +84,12 @@ func (s3Config *s3Config) getFileKeys() ([]string, error) {
 	for s3Object := range s3ListObjectsChannel {
 		if s3Object.Err != nil {
 			return []string{}, fmt.Errorf("Cannot get file info from s3, error was: %s", s3Object.Err)
+		}
+
+		fileKey := s3Object.Key
+
+		if isFolder := strings.HasSuffix(fileKey, "/"); isFolder {
+			continue
 		}
 
 		fileKeys = append(fileKeys, s3Object.Key)

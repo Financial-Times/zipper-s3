@@ -88,7 +88,7 @@ func main() {
 			log.SetLevel(log.DebugLevel)
 		}
 
-		log.Infof("Starting app with parameters: [s3-content-folder=%s], [bucket-name=%s] [year-to-start=%d] [max-no-of-goroutines=%d] [is-enabled: %t]", *s3ContentFolder, *bucketName, *yearToStart, *maxNoOfGoroutines, *isAppEnabled)
+		log.Infof("Starting app with parameters: [s3-content-folder=%s],[s3-archives-folder=%s], [bucket-name=%s] [year-to-start=%d] [max-no-of-goroutines=%d] [is-enabled: %t]", *s3ContentFolder, *s3ArchivesFolder, *bucketName, *yearToStart, *maxNoOfGoroutines, *isAppEnabled)
 
 		if !*isAppEnabled {
 			log.Infof("App is not enabled. Please enable it by setting the IS_ENABLED env var.")

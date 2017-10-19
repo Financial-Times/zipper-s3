@@ -16,11 +16,11 @@ type mockS3Client struct {
 }
 
 const (
-	validFileName = "valid-object.json"
-	invalidFileName = "invalid-object.json"
-	nonExistingZip = "non-existing-zip.zip"
+	validFileName             = "valid-object.json"
+	invalidFileName           = "invalid-object.json"
+	nonExistingZip            = "non-existing-zip.zip"
 	zipNameForFailingS3Client = "yearly-archives/failing-s3-client.zip"
-	invalidZipName = "failing-s3-client.zip"
+	invalidZipName            = "failing-s3-client.zip"
 )
 
 func (s3Client *mockS3Client) GetObject(bucketName, objectName string) (*minio.Object, error) {
