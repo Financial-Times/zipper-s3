@@ -11,10 +11,11 @@ import (
 )
 
 type s3Config struct {
-	client          s3Client
-	bucketName      string
-	objectKeyPrefix string
-	archivesFolder  string
+	client            s3Client
+	bucketName        string
+	contentFolderName string
+	conceptFolderName string
+	archivesFolder    string
 }
 
 type s3Object interface {
@@ -35,11 +36,12 @@ type s3 interface {
 	getFileKeys() ([]string, uint64, error)
 }
 
-func newS3Config(s3Client s3Client, bucketName string, objectKeyPrefix string, archivesFolder string) *s3Config {
+func newS3Config(s3Client s3Client, bucketName string, contentFolderName string, conceptFolderName string, archivesFolder string) *s3Config {
 	return &s3Config{
 		client:          s3Client,
 		bucketName:      bucketName,
-		objectKeyPrefix: objectKeyPrefix,
+		contentFolderName: contentFolderName,
+		conceptFolderName: conceptFolderName,
 		archivesFolder:  archivesFolder,
 	}
 }
@@ -70,16 +72,16 @@ func (s3Config *s3Config) downloadFile(fileName string, noOfRetries int) (s3Obje
 	if err != nil {
 		log.WithError(err).Errorf("Cannot download file with name %s from s3. Sleeping for 5 seconds and retrying..", fileName)
 		time.Sleep(5 * time.Second)
-		return s3Config.downloadFile(fileName, noOfRetries-1)
+		return s3Config.downloadFile(fileName, noOfRetries - 1)
 	}
 
 	return obj, nil
 }
 
-func (s3Config *s3Config) getFileKeys() ([]string, error) {
-	log.Infof("Starting fileKeys retrieval from s3..")
+func (s3Config *s3Config) getFileKeys(folderName string) ([]string, error) {
+	log.Infof("Starting fileKeys retrieval from s3 folder: %s..", folderName)
 	doneCh := make(chan struct{})
-	s3ListObjectsChannel := s3Config.client.ListObjects(s3Config.bucketName, s3Config.objectKeyPrefix, true, doneCh)
+	s3ListObjectsChannel := s3Config.client.ListObjects(s3Config.bucketName, folderName, true, doneCh)
 	fileKeys := make([]string, 0)
 	for s3Object := range s3ListObjectsChannel {
 		if s3Object.Err != nil {
@@ -95,6 +97,6 @@ func (s3Config *s3Config) getFileKeys() ([]string, error) {
 		fileKeys = append(fileKeys, s3Object.Key)
 	}
 
-	log.Infof("Finished fileKeys retrieval from s3. There are %d files", len(fileKeys))
+	log.Infof("Finished fileKeys retrieval from s3 folder name %s. There are %d files", folderName, len(fileKeys))
 	return fileKeys, nil
 }

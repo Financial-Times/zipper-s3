@@ -16,11 +16,11 @@ type mockS3Client struct {
 }
 
 const (
-	validFileName             = "valid-object.json"
-	invalidFileName           = "invalid-object.json"
-	nonExistingZip            = "non-existing-zip.zip"
+	validFileName = "valid-object.json"
+	invalidFileName = "invalid-object.json"
+	nonExistingZip = "non-existing-zip.zip"
 	zipNameForFailingS3Client = "yearly-archives/failing-s3-client.zip"
-	invalidZipName            = "failing-s3-client.zip"
+	invalidZipName = "failing-s3-client.zip"
 )
 
 func (s3Client *mockS3Client) GetObject(bucketName, objectName string) (*minio.Object, error) {
@@ -62,7 +62,7 @@ func (s3Client *mockS3Client) ListObjects(bucketName, objectPrefix string, recur
 }
 
 func TestDownloadFileHappyFlow(t *testing.T) {
-	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "", "")
+	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "","", "")
 
 	downloadedFile, err := s3Config.downloadFile(validFileName, 2)
 
@@ -71,7 +71,7 @@ func TestDownloadFileHappyFlow(t *testing.T) {
 }
 
 func TestDownloadFileWithOneRetry(t *testing.T) {
-	s3Config := newS3Config(&mockS3Client{shouldRetry: true}, "test-bucket", "", "")
+	s3Config := newS3Config(&mockS3Client{shouldRetry: true}, "test-bucket", "","", "")
 
 	downloadedFile, err := s3Config.downloadFile(validFileName, 3)
 
@@ -80,7 +80,7 @@ func TestDownloadFileWithOneRetry(t *testing.T) {
 }
 
 func TestDownloadFileWithInvalidFileName(t *testing.T) {
-	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "", "")
+	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "", "","")
 
 	downloadedFile, err := s3Config.downloadFile(invalidFileName, 3)
 
@@ -94,7 +94,7 @@ func TestUploadFileHappyFlow(t *testing.T) {
 	tempZipName := zipFile.Name()
 	defer os.Remove(tempZipName)
 	zipFile.Close()
-	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "", "")
+	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "","", "")
 
 	err = s3Config.uploadFile(tempZipName, "test.zip")
 
@@ -102,7 +102,7 @@ func TestUploadFileHappyFlow(t *testing.T) {
 }
 
 func TestUploadFileNonExistingZip(t *testing.T) {
-	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "", "")
+	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "","", "")
 
 	err := s3Config.uploadFile(nonExistingZip, "test.zip")
 
@@ -115,7 +115,7 @@ func TestUploadFileWithS3ClientFailure(t *testing.T) {
 	tempZipName := zipFile.Name()
 	defer os.Remove(tempZipName)
 	zipFile.Close()
-	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "", "yearly-archives")
+	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "", "", "yearly-archives")
 
 	err = s3Config.uploadFile(tempZipName, invalidZipName)
 
@@ -123,9 +123,9 @@ func TestUploadFileWithS3ClientFailure(t *testing.T) {
 }
 
 func TestGetObjectKeysValidKeys(t *testing.T) {
-	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "valid-prefix", "")
+	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "valid-prefix", "", "")
 
-	fileKeys, err := s3Config.getFileKeys()
+	fileKeys, err := s3Config.getFileKeys("valid-prefix")
 
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(fileKeys))
@@ -133,9 +133,9 @@ func TestGetObjectKeysValidKeys(t *testing.T) {
 }
 
 func TestGetObjectKeysObjectInfoWithErrs(t *testing.T) {
-	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "valid-prefix-with-errors-on-file", "")
+	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "valid-prefix-with-errors-on-file", "", "")
 
-	_, err := s3Config.getFileKeys()
+	_, err := s3Config.getFileKeys("valid-prefix-with-errors-on-file")
 
 	assert.NotNil(t, err)
 }
