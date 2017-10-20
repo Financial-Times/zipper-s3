@@ -21,11 +21,13 @@ spec:
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         env:
         - name: BUCKET_NAME
-          value: "com.ft.universalpublishing.enrichedcontentdata"
+          value:  "{{ .Values.env.bucket.name }}"
         - name: S3_CONTENT_FOLDER
-          value: "unarchived"
+          value: "{{ .Values.env.bucket.content.folder }}"
+        - name: S3_CONCEPT_FOLDER
+          value: "{{ .Values.env.bucket.concept.folder }}"
         - name: MAX_NO_OF_GOROUTINES
-          value: "6"
+          value: "{{ .Values.env.max.goroutines }}"
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
@@ -41,6 +43,11 @@ spec:
             configMapKeyRef:
               name: global-config
               key: zipper.s3.isenabled
+        - name: YEAR_TO_START
+          valueFrom:
+            configMapKeyRef:
+              name: global-config
+              key: zipper.s3.yeartostart
         resources: 
 {{ toYaml .Values.resources | indent 12 }}
       restartPolicy: Never
