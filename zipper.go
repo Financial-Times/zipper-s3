@@ -48,7 +48,7 @@ func zipAndUploadFiles(s3Config *s3Config, zipConfig *zipConfig, done chan bool,
 	}
 
 	if noOfZippedFiles == 0 {
-		log.Warnf("There is no content file on S3 to be added to archive with name %s. The s3 file prefix that has been used is %s", zipConfig.zipName, s3Config.objectKeyPrefix)
+		log.Warnf("There is no content file on S3 to be added to archive with name %s. The s3 file prefix that has been used is %s", zipConfig.zipName, s3Config.contentFolderName)
 		return
 	}
 

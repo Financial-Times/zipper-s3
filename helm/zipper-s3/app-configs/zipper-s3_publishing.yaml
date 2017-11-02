@@ -2,3 +2,14 @@
 replicaCount: 1
 job:
   name: zipper-s3
+env:
+  bucket:
+    name: "com.ft.universalpublishing.enrichedcontentdata.test"
+    content:
+      folder: "k8s-unarchived"
+    concept:
+      folder: "k8s-concepts-unarchived"
+  max:
+    goroutines: "6"
+
+

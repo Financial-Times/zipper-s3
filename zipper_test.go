@@ -89,7 +89,7 @@ func TestIsContentMoreThanThirtyDaysBeforeInvalidDateFormat(t *testing.T) {
 }
 
 func TestZipFilesNoFiles(t *testing.T) {
-	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "", "")
+	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "", "", "")
 	zipConfig := newZipConfig("", nil, 0, []string{})
 
 	_, noOfZippedFiles, err := createZipFiles(s3Config, zipConfig)
@@ -160,7 +160,7 @@ func TestIsContentFromProvidedYearProvidedKeyIsInvalid(t *testing.T) {
 }
 
 func TestZipFilesInvalidFileName(t *testing.T) {
-	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "", "")
+	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "", "", "")
 	zipConfig := newZipConfig("yearly-archive-2017.zip", nil, 2017, []string{"invalid-file"})
 
 	_, _, err := createZipFiles(s3Config, zipConfig)

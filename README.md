@@ -32,6 +32,7 @@ Download the source code, dependencies and test dependencies:
     - `BUCKET_NAME` bucket name of content
     - `S3_DOMAIN` S3 domain of content
     - `S3_CONTENT_FOLDER` name of the folder that json files with the content are stored in
+    - `S3_CONCEPT_FOLDER` name of the folder that json files with the concept are stored in
     - `LOG_DEBUG` flag which if it is set to true, the app will also output debug logs
 ## Build and deployment
 

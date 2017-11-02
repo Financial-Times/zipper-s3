@@ -12,8 +12,9 @@ import (
 )
 
 const (
-	last30DaysArchiveName    = "FT-archive-last-30-days.zip"
+	last30DaysArchiveName = "FT-archive-last-30-days.zip"
 	yearlyArchivesNameFormat = "FT-archive-%d.zip"
+	conceptsArchiveName = "FT-archive-concepts.zip"
 )
 
 func main() {
@@ -59,6 +60,13 @@ func main() {
 		EnvVar: "S3_DOMAIN",
 	})
 
+	s3ConceptFolder := app.String(cli.StringOpt{
+		Name:   "s3-concept-folder",
+		Value:  "unarchived-concepts",
+		Desc:   "Name of the folder that json files with the concepts are stored in.",
+		EnvVar: "S3_CONCEPT_FOLDER",
+	})
+
 	s3ContentFolder := app.String(cli.StringOpt{
 		Name:   "s3-content-folder",
 		Value:  "unarchived-content",
@@ -88,7 +96,7 @@ func main() {
 			log.SetLevel(log.DebugLevel)
 		}
 
-		log.Infof("Starting app with parameters: [s3-content-folder=%s], [bucket-name=%s] [year-to-start=%d] [max-no-of-goroutines=%d] [is-enabled: %t]", *s3ContentFolder, *bucketName, *yearToStart, *maxNoOfGoroutines, *isAppEnabled)
+		log.Infof("Starting app with parameters: [s3-content-folder=%s],[s3-concepts-folder=%s], [s3-archives-folder=%s], [bucket-name=%s] [year-to-start=%d] [max-no-of-goroutines=%d] [is-enabled: %t]", *s3ContentFolder,*s3ConceptFolder, *s3ArchivesFolder, *bucketName, *yearToStart, *maxNoOfGoroutines, *isAppEnabled)
 
 		if !*isAppEnabled {
 			log.Infof("App is not enabled. Please enable it by setting the IS_ENABLED env var.")
@@ -100,7 +108,7 @@ func main() {
 			log.WithError(err).Fatal("Cannot create S3 client")
 		}
 
-		s3Config := newS3Config(s3Client, *bucketName, *s3ContentFolder, *s3ArchivesFolder)
+		s3Config := newS3Config(s3Client, *bucketName, *s3ContentFolder, *s3ConceptFolder, *s3ArchivesFolder)
 
 		startTime := time.Now()
 		go func() {
@@ -110,7 +118,14 @@ func main() {
 			}
 		}()
 
-		fileKeys, err := s3Config.getFileKeys()
+		//concepts zipping
+		conceptFileKeys, err := s3Config.getFileKeys(s3Config.conceptFolderName)
+		if err != nil {
+			log.WithError(err).Fatal("Cannot get file keys from s3")
+		}
+
+		//contents zipping
+		contentFileKeys, err := s3Config.getFileKeys(s3Config.contentFolderName)
 		if err != nil {
 			log.WithError(err).Fatal("Cannot get file keys from s3")
 		}
@@ -133,6 +148,10 @@ func main() {
 		waitForAllJobs := make(chan bool)
 
 		go func() {
+			<-done
+			// Say that another goroutine can now start.
+			concurrentGoroutines <- struct{}{}
+
 			for year := *yearToStart; year <= currentYear; year++ {
 				<-done
 				// Say that another goroutine can now start.
@@ -143,11 +162,16 @@ func main() {
 			waitForAllJobs <- true
 		}()
 
+		log.Infof("Zipping up files for concepts waiting to launch!")
+		<-concurrentGoroutines
+		zipConfig := newZipConfig(conceptsArchiveName, nil, 0, conceptFileKeys)
+		go zipAndUploadFiles(s3Config, zipConfig,done, errsCh)
+
 		for year := *yearToStart; year <= currentYear; year++ {
 			log.Infof("Zipping up files from year %d waiting to launch!", year)
 			<-concurrentGoroutines
 
-			zipConfig := newZipConfig(fmt.Sprintf(yearlyArchivesNameFormat, year), isContentFromProvidedYear, year, fileKeys)
+			zipConfig := newZipConfig(fmt.Sprintf(yearlyArchivesNameFormat, year), isContentFromProvidedYear, year, contentFileKeys)
 			go zipAndUploadFiles(s3Config, zipConfig, done, errsCh)
 		}
 
@@ -155,7 +179,7 @@ func main() {
 		<-done
 
 		//zip files for last 30 days
-		zipConfig := newZipConfig(last30DaysArchiveName, isContentLessThanThirtyDaysBefore, 0, fileKeys)
+		zipConfig = newZipConfig(last30DaysArchiveName, isContentLessThanThirtyDaysBefore, 0, contentFileKeys)
 		go zipAndUploadFiles(s3Config, zipConfig, done, errsCh)
 
 		go func() {
