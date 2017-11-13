@@ -27,8 +27,13 @@ spec:
               value: "{{ .Values.env.bucket.content.folder }}"
             - name: S3_CONCEPT_FOLDER
               value: "{{ .Values.env.bucket.concept.folder }}"
+            - name: S3_ARCHIVES_FOLDER
+              value: "{{ .Values.env.bucket.archives.folder }}"
             - name: MAX_NO_OF_GOROUTINES
-              value: "{{ .Values.env.max.goroutines }}"
+              valueFrom:
+                configMapKeyRef:
+                  name: global-config
+                  key: zipper.max.goroutines
             - name: AWS_ACCESS_KEY_ID
               valueFrom:
                 secretKeyRef:

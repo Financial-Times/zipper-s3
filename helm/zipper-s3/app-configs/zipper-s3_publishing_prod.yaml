@@ -6,10 +6,9 @@ env:
   bucket:
     name: "com.ft.universalpublishing.enrichedcontentdata.test"
     content:
-      folder: "k8s-unarchived"
+      folder: "k8s-prod-unarchived-content"
     concept:
-      folder: "k8s-concepts-unarchived"
-  max:
-    goroutines: "6"
-
+      folder: "k8s-prod-unarchived-concepts"
+    archives:
+      folder: "k8s-prod-archives"
 
