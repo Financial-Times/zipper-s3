@@ -2,13 +2,4 @@
 replicaCount: 1
 job:
   name: zipper-s3
-env:
-  bucket:
-    name: "com.ft.universalpublishing.enrichedcontentdata.test"
-    content:
-      folder: "k8s-prod-unarchived-content"
-    concept:
-      folder: "k8s-prod-unarchived-concepts"
-    archives:
-      folder: "k8s-prod-archives"
 

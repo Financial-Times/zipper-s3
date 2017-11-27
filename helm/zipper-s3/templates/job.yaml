@@ -22,13 +22,22 @@ spec:
             imagePullPolicy: {{ .Values.image.pullPolicy }}
             env:
             - name: BUCKET_NAME
-              value:  "{{ .Values.env.bucket.name }}"
+              value: upp-exports-s3.bucket
             - name: S3_CONTENT_FOLDER
-              value: "{{ .Values.env.bucket.content.folder }}"
+              valueFrom:
+                configMapKeyRef:
+                  name: global-config
+                  key: upp-exports-s3.content.prefix
             - name: S3_CONCEPT_FOLDER
-              value: "{{ .Values.env.bucket.concept.folder }}"
+              valueFrom:
+                configMapKeyRef:
+                  name: global-config
+                  key: upp-exports-s3.concept.prefix
             - name: S3_ARCHIVES_FOLDER
-              value: "{{ .Values.env.bucket.archives.folder }}"
+              valueFrom:
+                configMapKeyRef:
+                  name: global-config
+                  key: upp-exports-s3.archives.prefix
             - name: MAX_NO_OF_GOROUTINES
               valueFrom:
                 configMapKeyRef:
@@ -55,6 +64,6 @@ spec:
                   name: global-config
                   key: zipper.s3.yeartostart
             resources:
-    {{ toYaml .Values.resources | indent 14 }}
+{{ toYaml .Values.resources | indent 14 }}
           restartPolicy: Never
 
