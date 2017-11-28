@@ -9,6 +9,7 @@ metadata:
 spec:
   template:
     metadata:
+      name: {{ .Values.job.name }}
       labels:
         app: {{ .Values.job.name }}
         visualize: "true"
@@ -64,6 +65,6 @@ spec:
               name: global-config
               key: zipper.s3.yeartostart
         resources:
-{{ toYaml .Values.resources | indent 14 }}
+{{ toYaml .Values.resources | indent 10 }}
       restartPolicy: Never
 
