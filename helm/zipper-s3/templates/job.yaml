@@ -1,5 +1,5 @@
-apiVersion: batch/v1beta1
-kind: CronJob
+apiVersion: batch/v1
+kind: Job
 metadata:
   name: {{ .Values.job.name }}
   labels:
@@ -7,63 +7,60 @@ metadata:
     visualize: "true"
     app: {{ .Values.job.name }}
 spec:
-  schedule: "0 4 * * *"
-  jobTemplate:
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.job.name }}
+        visualize: "true"
     spec:
-      template:
-        metadata:
-          labels:
-            app: {{ .Values.job.name }}
-            visualize: "true"
-        spec:
-          containers:
-          - name: {{ .Values.job.name }}
-            image: "{{ .Values.image.repository }}:{{ .Chart.Version }}"
-            imagePullPolicy: {{ .Values.image.pullPolicy }}
-            env:
-            - name: BUCKET_NAME
-              value: upp-exports-s3.bucket
-            - name: S3_CONTENT_FOLDER
-              valueFrom:
-                configMapKeyRef:
-                  name: global-config
-                  key: upp-exports-s3.content.prefix
-            - name: S3_CONCEPT_FOLDER
-              valueFrom:
-                configMapKeyRef:
-                  name: global-config
-                  key: upp-exports-s3.concept.prefix
-            - name: S3_ARCHIVES_FOLDER
-              valueFrom:
-                configMapKeyRef:
-                  name: global-config
-                  key: upp-exports-s3.archives.prefix
-            - name: MAX_NO_OF_GOROUTINES
-              valueFrom:
-                configMapKeyRef:
-                  name: global-config
-                  key: zipper.max.goroutines
-            - name: AWS_ACCESS_KEY_ID
-              valueFrom:
-                secretKeyRef:
-                  name: global-secrets
-                  key: aws.access_key_id
-            - name: AWS_SECRET_ACCESS_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: global-secrets
-                  key: aws.secret_access_key
-            - name: IS_ENABLED
-              valueFrom:
-                configMapKeyRef:
-                  name: global-config
-                  key: zipper.s3.isenabled
-            - name: YEAR_TO_START
-              valueFrom:
-                configMapKeyRef:
-                  name: global-config
-                  key: zipper.s3.yeartostart
-            resources:
+      containers:
+      - name: {{ .Values.job.name }}
+        image: "{{ .Values.image.repository }}:{{ .Chart.Version }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        env:
+        - name: BUCKET_NAME
+          value: upp-exports-s3.bucket
+        - name: S3_CONTENT_FOLDER
+          valueFrom:
+            configMapKeyRef:
+              name: global-config
+              key: upp-exports-s3.content.prefix
+        - name: S3_CONCEPT_FOLDER
+          valueFrom:
+            configMapKeyRef:
+              name: global-config
+              key: upp-exports-s3.concept.prefix
+        - name: S3_ARCHIVES_FOLDER
+          valueFrom:
+            configMapKeyRef:
+              name: global-config
+              key: upp-exports-s3.archives.prefix
+        - name: MAX_NO_OF_GOROUTINES
+          valueFrom:
+            configMapKeyRef:
+              name: global-config
+              key: zipper.max.goroutines
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: global-secrets
+              key: aws.access_key_id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: global-secrets
+              key: aws.secret_access_key
+        - name: IS_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              name: global-config
+              key: zipper.s3.isenabled
+        - name: YEAR_TO_START
+          valueFrom:
+            configMapKeyRef:
+              name: global-config
+              key: zipper.s3.yeartostart
+        resources:
 {{ toYaml .Values.resources | indent 14 }}
-          restartPolicy: Never
+      restartPolicy: Never
 
