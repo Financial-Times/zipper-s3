@@ -65,6 +65,6 @@ spec:
               name: global-config
               key: zipper.s3.yeartostart
         resources:
-{{ toYaml .Values.resources | indent 10 }}
+{{ toYaml .Values.resources | indent 12 }}
       restartPolicy: Never
 
