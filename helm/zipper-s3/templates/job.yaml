@@ -19,7 +19,10 @@ spec:
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         env:
         - name: BUCKET_NAME
-          value: upp-exports-s3.bucket
+          valueFrom:
+            configMapKeyRef:
+              name: global-config
+              key: upp-exports-s3.bucket
         - name: S3_CONTENT_FOLDER
           valueFrom:
             configMapKeyRef:
