@@ -3,7 +3,8 @@ kind: CronJob
 metadata:
   name: {{ .Values.job.name }}
   labels:
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    chart: "{{ .Chart.Name | trunc 63 }}"
+    chartVersion: "{{ .Chart.Version | trunc 63 }}"
     visualize: "true"
     app: {{ .Values.job.name }}
 spec:
