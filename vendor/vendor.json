@@ -51,10 +51,12 @@
 			"revisionTime": "2017-07-12T11:38:24Z"
 		},
 		{
-			"checksumSHA1": "A15fVTSnJ5AWlTmdyoszbVDLMUI=",
+			"checksumSHA1": "jxT6vHE4AxgQExMXLjNx927i5cM=",
 			"path": "github.com/minio/minio-go",
 			"revision": "8cf0454aea55db44675ec9c6bfc6ebaaa819dfa7",
-			"revisionTime": "2017-08-17T03:05:17Z"
+			"revisionTime": "2017-08-17T03:05:17Z",
+			"version": "4.0.3",
+			"versionExact": "4.0.3"
 		},
 		{
 			"checksumSHA1": "qPt3l9ZUjG0J4oZNTSrKy17rts0=",
@@ -136,7 +138,7 @@
 			"revisionTime": "2017-08-18T09:57:21Z"
 		},
 		{
-			"checksumSHA1": "WZqSNXyoBt+dALtTo3S/xf3I19Q=",
+			"checksumSHA1": "ctkHmbkAolywuCZZocHn514yvXA=",
 			"path": "golang.org/x/sys/unix",
 			"revision": "ebfc5b4631820b793c9010c87fd8fef0f39eb082",
 			"revisionTime": "2017-10-06T15:06:24Z"
