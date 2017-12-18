@@ -51,6 +51,11 @@
 			"revisionTime": "2017-07-12T11:38:24Z"
 		},
 		{
+			"checksumSHA1": "Ws2pqY93XGkFXIFmyH0W6ItaI/k=",
+			"path": "github.com/minio/go-homedir",
+			"revision": "4d76aabb80b22bad8695d3904e943f1fb5e6199f"
+		},
+		{
 			"checksumSHA1": "jxT6vHE4AxgQExMXLjNx927i5cM=",
 			"path": "github.com/minio/minio-go",
 			"revision": "8cf0454aea55db44675ec9c6bfc6ebaaa819dfa7",
@@ -58,12 +63,6 @@
 			"version": "4.0.3",
 			"versionExact": "4.0.3"
 		},
-		{
-            "checksumSHA1": "q8VfSvQ6fZY+QwtlMPtQsJrNews=",
-            "path": "github.com/minio/go-homedir",
-            "revision": "21304a94172ae3a09dee2cd86a12fb6f842138c7",
-            "revisionTime": "2016-02-15T11:55:11Z"
-        },
 		{
 			"checksumSHA1": "qPt3l9ZUjG0J4oZNTSrKy17rts0=",
 			"path": "github.com/minio/minio-go/pkg/credentials",
