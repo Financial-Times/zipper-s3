@@ -59,6 +59,12 @@
 			"versionExact": "4.0.3"
 		},
 		{
+            "checksumSHA1": "q8VfSvQ6fZY+QwtlMPtQsJrNews=",
+            "path": "github.com/minio/go-homedir",
+            "revision": "21304a94172ae3a09dee2cd86a12fb6f842138c7",
+            "revisionTime": "2016-02-15T11:55:11Z"
+        },
+		{
 			"checksumSHA1": "qPt3l9ZUjG0J4oZNTSrKy17rts0=",
 			"path": "github.com/minio/minio-go/pkg/credentials",
 			"revision": "8cf0454aea55db44675ec9c6bfc6ebaaa819dfa7",
