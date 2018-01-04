@@ -1,54 +1,74 @@
-##this is an example deployment.yaml that should be customized in order to meet the configuration for app k8s deployment
-
-apiVersion: batch/v1
-kind: Job
+apiVersion: batch/v1beta1
+kind: CronJob
 metadata:
   name: {{ .Values.job.name }}
   labels:
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}" 
-    visualize: "true" 
+    chart: "{{ .Chart.Name | trunc 63 }}"
+    chartVersion: "{{ .Chart.Version | trunc 63 }}"
+    visualize: "true"
     app: {{ .Values.job.name }}
 spec:
-  template:
-    metadata:
-      labels:
-        app: {{ .Values.job.name }}
-        visualize: "true" 
+  schedule: "0 4 * * *"
+  jobTemplate:
     spec:
-      containers: 
-      - name: {{ .Values.job.name }}
-        image: "{{ .Values.image.repository }}:{{ .Chart.Version }}"
-        imagePullPolicy: {{ .Values.image.pullPolicy }}
-        env:
-        - name: BUCKET_NAME
-          value:  "{{ .Values.env.bucket.name }}"
-        - name: S3_CONTENT_FOLDER
-          value: "{{ .Values.env.bucket.content.folder }}"
-        - name: S3_CONCEPT_FOLDER
-          value: "{{ .Values.env.bucket.concept.folder }}"
-        - name: MAX_NO_OF_GOROUTINES
-          value: "{{ .Values.env.max.goroutines }}"
-        - name: AWS_ACCESS_KEY_ID
-          valueFrom:
-            secretKeyRef:
-              name: global-secrets
-              key: aws.access_key_id
-        - name: AWS_SECRET_ACCESS_KEY
-          valueFrom:
-            secretKeyRef:
-              name: global-secrets
-              key: aws.secret_access_key
-        - name: IS_ENABLED
-          valueFrom:
-            configMapKeyRef:
-              name: global-config
-              key: zipper.s3.isenabled
-        - name: YEAR_TO_START
-          valueFrom:
-            configMapKeyRef:
-              name: global-config
-              key: zipper.s3.yeartostart
-        resources: 
-{{ toYaml .Values.resources | indent 12 }}
-      restartPolicy: Never
+      template:
+        metadata:
+          name: {{ .Values.job.name }}
+          labels:
+            app: {{ .Values.job.name }}
+            visualize: "true"
+        spec:
+          containers:
+          - name: {{ .Values.job.name }}
+            image: "{{ .Values.image.repository }}:{{ .Chart.Version }}"
+            imagePullPolicy: {{ .Values.image.pullPolicy }}
+            env:
+            - name: S3_CONTENT_FOLDER
+              valueFrom:
+                configMapKeyRef:
+                  name: global-config
+                  key: upp-exports-s3.content.prefix
+            - name: BUCKET_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: global-config
+                  key: upp-exports-s3.bucket
+            - name: S3_CONCEPT_FOLDER
+              valueFrom:
+                configMapKeyRef:
+                  name: global-config
+                  key: upp-exports-s3.concept.prefix
+            - name: S3_ARCHIVES_FOLDER
+              valueFrom:
+                configMapKeyRef:
+                  name: global-config
+                  key: upp-exports-s3.archives.prefix
+            - name: MAX_NO_OF_GOROUTINES
+              valueFrom:
+                configMapKeyRef:
+                  name: global-config
+                  key: zipper.max.goroutines
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: global-secrets
+                  key: aws.access_key_id
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: global-secrets
+                  key: aws.secret_access_key
+            - name: IS_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: global-config
+                  key: zipper.s3.isenabled
+            - name: YEAR_TO_START
+              valueFrom:
+                configMapKeyRef:
+                  name: global-config
+                  key: zipper.s3.yeartostart
+            resources:
+{{ toYaml .Values.resources | indent 14 }}
+          restartPolicy: Never
 

@@ -3,29 +3,16 @@
 	"ignore": "test",
 	"package": [
 		{
-			"checksumSHA1": "fNgRM8ZlaDzdvSpuhSdGxEOrWi4=",
-			"path": "github.com/Financial-Times/go-fthealth/v1_1",
-			"revision": "e7ccca038327a0091303a52445ec1f0fb66cb97b",
-			"revisionTime": "2017-05-25T09:50:41Z"
-		},
-		{
-			"checksumSHA1": "2rGNLXdRC3qr5n5ll7BpYt8HCK8=",
-			"path": "github.com/Financial-Times/service-status-go/gtg",
-			"revision": "3f5199736a3d7ae52394c63aac36834786825e21",
-			"revisionTime": "2016-03-23T11:15:42Z"
-		},
-		{
 			"checksumSHA1": "+Jp0tVXfQ1TM8T+oun82oJtME5U=",
 			"path": "github.com/Shopify/sarama",
 			"revision": "2fd980e23bdcbb8edeb78fc704de0c39a6567ffc",
 			"revisionTime": "2017-06-30T17:40:37Z"
 		},
 		{
-			"checksumSHA1": "OFu4xJEIjiI8Suu+j/gabfp+y6Q=",
-			"origin": "github.com/stretchr/testify/vendor/github.com/davecgh/go-spew/spew",
+			"checksumSHA1": "mrz/kicZiUaHxkyfvC/DyQcr8Do=",
 			"path": "github.com/davecgh/go-spew/spew",
-			"revision": "f6abca593680b2315d2075e0f5e2a9751e3f431a",
-			"revisionTime": "2017-06-01T20:57:54Z"
+			"revision": "adab96458c51a58dc1783b3335dcce5461522e75",
+			"revisionTime": "2017-07-11T18:34:51Z"
 		},
 		{
 			"checksumSHA1": "y2Kh4iPlgCPXSGTCcFpzePYdzzg=",
@@ -64,40 +51,17 @@
 			"revisionTime": "2017-07-12T11:38:24Z"
 		},
 		{
-			"checksumSHA1": "mA7isU/nIAT5ytwIzK65H0vlVqI=",
-			"path": "github.com/klauspost/compress/flate",
-			"revision": "f3dce52e0576655d55fd69e74b63da96ad1108f3",
-			"revisionTime": "2017-05-28T13:23:59Z"
-		},
-		{
-			"checksumSHA1": "p7sb/xC1meQa9M23giwKiqrxaEc=",
-			"path": "github.com/klauspost/cpuid",
-			"revision": "ae7887de9fa5d2db4eaa8174a7eff2c1ac00f2da",
-			"revisionTime": "2017-07-28T05:55:34Z"
-		},
-		{
-			"checksumSHA1": "6/zXof97s7P9tlNp3mUioXgeEVI=",
-			"path": "github.com/klauspost/crc32",
-			"revision": "bab58d77464aa9cf4e84200c3276da0831fe0c03",
-			"revisionTime": "2017-06-28T07:24:49Z"
-		},
-		{
-			"checksumSHA1": "HHwDvVvMRRrhfz+3dplYQpUX4YY=",
-			"path": "github.com/klauspost/pgzip",
-			"revision": "0bf5dcad4ada2814c3c00f996a982270bb81a506",
-			"revisionTime": "2017-04-02T12:42:21Z"
-		},
-		{
-			"checksumSHA1": "q8VfSvQ6fZY+QwtlMPtQsJrNews=",
+			"checksumSHA1": "Ws2pqY93XGkFXIFmyH0W6ItaI/k=",
 			"path": "github.com/minio/go-homedir",
-			"revision": "21304a94172ae3a09dee2cd86a12fb6f842138c7",
-			"revisionTime": "2016-02-15T11:55:11Z"
+			"revision": "4d76aabb80b22bad8695d3904e943f1fb5e6199f"
 		},
 		{
-			"checksumSHA1": "A15fVTSnJ5AWlTmdyoszbVDLMUI=",
+			"checksumSHA1": "jxT6vHE4AxgQExMXLjNx927i5cM=",
 			"path": "github.com/minio/minio-go",
 			"revision": "8cf0454aea55db44675ec9c6bfc6ebaaa819dfa7",
-			"revisionTime": "2017-08-17T03:05:17Z"
+			"revisionTime": "2017-08-17T03:05:17Z",
+			"version": "4.0.3",
+			"versionExact": "4.0.3"
 		},
 		{
 			"checksumSHA1": "qPt3l9ZUjG0J4oZNTSrKy17rts0=",
@@ -179,7 +143,7 @@
 			"revisionTime": "2017-08-18T09:57:21Z"
 		},
 		{
-			"checksumSHA1": "WZqSNXyoBt+dALtTo3S/xf3I19Q=",
+			"checksumSHA1": "ctkHmbkAolywuCZZocHn514yvXA=",
 			"path": "golang.org/x/sys/unix",
 			"revision": "ebfc5b4631820b793c9010c87fd8fef0f39eb082",
 			"revisionTime": "2017-10-06T15:06:24Z"
