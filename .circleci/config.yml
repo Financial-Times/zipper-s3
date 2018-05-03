@@ -41,7 +41,7 @@ jobs:
   dockerfile:
     working_directory: /zipper-s3
     docker:
-      - image: docker:1.12.6-git
+      - image: docker:18.03
     steps:
       - checkout
       - setup_docker_engine
