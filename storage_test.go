@@ -3,12 +3,13 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/minio/minio-go"
-	"github.com/stretchr/testify/assert"
 	"io"
 	"io/ioutil"
 	"os"
 	"testing"
+
+	minio "github.com/minio/minio-go/v6"
+	"github.com/stretchr/testify/assert"
 )
 
 type mockS3Client struct {
@@ -16,14 +17,14 @@ type mockS3Client struct {
 }
 
 const (
-	validFileName = "valid-object.json"
-	invalidFileName = "invalid-object.json"
-	nonExistingZip = "non-existing-zip.zip"
+	validFileName             = "valid-object.json"
+	invalidFileName           = "invalid-object.json"
+	nonExistingZip            = "non-existing-zip.zip"
 	zipNameForFailingS3Client = "yearly-archives/failing-s3-client.zip"
-	invalidZipName = "failing-s3-client.zip"
+	invalidZipName            = "failing-s3-client.zip"
 )
 
-func (s3Client *mockS3Client) GetObject(bucketName, objectName string) (*minio.Object, error) {
+func (s3Client *mockS3Client) GetObject(bucketName, objectName string, opts minio.GetObjectOptions) (*minio.Object, error) {
 	if s3Client.shouldRetry {
 		s3Client.shouldRetry = false
 		return nil, fmt.Errorf("Too many requests")
@@ -35,10 +36,10 @@ func (s3Client *mockS3Client) GetObject(bucketName, objectName string) (*minio.O
 
 	return nil, fmt.Errorf("Network failure")
 }
-func (s3Client *mockS3Client) PutObject(bucketName, objectName string, reader io.Reader, contentType string) (n int64, err error) {
+func (s3Client *mockS3Client) PutObject(bucketName, objectName string, reader io.Reader, objectSize int64, opts minio.PutObjectOptions) (n int64, err error) {
 	fmt.Printf("name is: %s", objectName)
 	if objectName == zipNameForFailingS3Client {
-		return 0, fmt.Errorf("Cannot upload file.")
+		return 0, fmt.Errorf("cannot upload file")
 	}
 
 	return 0, nil
@@ -62,7 +63,7 @@ func (s3Client *mockS3Client) ListObjects(bucketName, objectPrefix string, recur
 }
 
 func TestDownloadFileHappyFlow(t *testing.T) {
-	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "","", "")
+	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "", "", "")
 
 	downloadedFile, err := s3Config.downloadFile(validFileName, 2)
 
@@ -71,7 +72,7 @@ func TestDownloadFileHappyFlow(t *testing.T) {
 }
 
 func TestDownloadFileWithOneRetry(t *testing.T) {
-	s3Config := newS3Config(&mockS3Client{shouldRetry: true}, "test-bucket", "","", "")
+	s3Config := newS3Config(&mockS3Client{shouldRetry: true}, "test-bucket", "", "", "")
 
 	downloadedFile, err := s3Config.downloadFile(validFileName, 3)
 
@@ -80,7 +81,7 @@ func TestDownloadFileWithOneRetry(t *testing.T) {
 }
 
 func TestDownloadFileWithInvalidFileName(t *testing.T) {
-	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "", "","")
+	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "", "", "")
 
 	downloadedFile, err := s3Config.downloadFile(invalidFileName, 3)
 
@@ -94,7 +95,7 @@ func TestUploadFileHappyFlow(t *testing.T) {
 	tempZipName := zipFile.Name()
 	defer os.Remove(tempZipName)
 	zipFile.Close()
-	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "","", "")
+	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "", "", "")
 
 	err = s3Config.uploadFile(tempZipName, "test.zip")
 
@@ -102,7 +103,7 @@ func TestUploadFileHappyFlow(t *testing.T) {
 }
 
 func TestUploadFileNonExistingZip(t *testing.T) {
-	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "","", "")
+	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "", "", "")
 
 	err := s3Config.uploadFile(nonExistingZip, "test.zip")
 

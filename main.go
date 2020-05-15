@@ -2,19 +2,20 @@ package main
 
 import (
 	"fmt"
-	"github.com/Shopify/sarama"
-	"github.com/jawher/mow.cli"
-	"github.com/minio/minio-go"
-	log "github.com/sirupsen/logrus"
 	standardlog "log"
 	"os"
 	"time"
+
+	"github.com/Shopify/sarama"
+	cli "github.com/jawher/mow.cli"
+	minio "github.com/minio/minio-go/v6"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
-	last30DaysArchiveName = "FT-archive-last-30-days.zip"
+	last30DaysArchiveName    = "FT-archive-last-30-days.zip"
 	yearlyArchivesNameFormat = "FT-archive-%d.zip"
-	conceptsArchiveName = "FT-archive-concepts.zip"
+	conceptsArchiveName      = "FT-archive-concepts.zip"
 )
 
 func main() {
@@ -96,7 +97,7 @@ func main() {
 			log.SetLevel(log.DebugLevel)
 		}
 
-		log.Infof("Starting app with parameters: [s3-content-folder=%s],[s3-concepts-folder=%s], [s3-archives-folder=%s], [bucket-name=%s] [year-to-start=%d] [max-no-of-goroutines=%d] [is-enabled: %t]", *s3ContentFolder,*s3ConceptFolder, *s3ArchivesFolder, *bucketName, *yearToStart, *maxNoOfGoroutines, *isAppEnabled)
+		log.Infof("Starting app with parameters: [s3-content-folder=%s],[s3-concepts-folder=%s], [s3-archives-folder=%s], [bucket-name=%s] [year-to-start=%d] [max-no-of-goroutines=%d] [is-enabled: %t]", *s3ContentFolder, *s3ConceptFolder, *s3ArchivesFolder, *bucketName, *yearToStart, *maxNoOfGoroutines, *isAppEnabled)
 
 		if !*isAppEnabled {
 			log.Infof("App is not enabled. Please enable it by setting the IS_ENABLED env var.")
@@ -165,7 +166,7 @@ func main() {
 		log.Infof("Zipping up files for concepts waiting to launch!")
 		<-concurrentGoroutines
 		zipConfig := newZipConfig(conceptsArchiveName, nil, 0, conceptFileKeys)
-		go zipAndUploadFiles(s3Config, zipConfig,done, errsCh)
+		go zipAndUploadFiles(s3Config, zipConfig, done, errsCh)
 
 		for year := *yearToStart; year <= currentYear; year++ {
 			log.Infof("Zipping up files from year %d waiting to launch!", year)
