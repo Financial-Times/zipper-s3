@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
-	"github.com/minio/minio-go"
-	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
+
+	minio "github.com/minio/minio-go/v6"
+	"github.com/stretchr/testify/assert"
 )
 
 const contentUUID = "00544bc0-679f-11e7-9d4e-ae21227e5abf"

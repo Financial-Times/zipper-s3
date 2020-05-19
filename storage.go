@@ -2,12 +2,13 @@ package main
 
 import (
 	"fmt"
-	"github.com/minio/minio-go"
-	log "github.com/sirupsen/logrus"
 	"io"
 	"os"
 	"strings"
 	"time"
+
+	minio "github.com/minio/minio-go/v6"
+	log "github.com/sirupsen/logrus"
 )
 
 type s3Config struct {
@@ -25,8 +26,8 @@ type s3Object interface {
 }
 
 type s3Client interface {
-	GetObject(bucketName, objectName string) (*minio.Object, error)
-	PutObject(bucketName, objectName string, reader io.Reader, contentType string) (n int64, err error)
+	GetObject(bucketName, objectName string, opts minio.GetObjectOptions) (*minio.Object, error)
+	PutObject(bucketName, objectName string, reader io.Reader, objectSize int64, opts minio.PutObjectOptions) (n int64, err error)
 	ListObjects(bucketName, objectPrefix string, recursive bool, doneCh <-chan struct{}) <-chan minio.ObjectInfo
 }
 
@@ -38,11 +39,11 @@ type s3 interface {
 
 func newS3Config(s3Client s3Client, bucketName string, contentFolderName string, conceptFolderName string, archivesFolder string) *s3Config {
 	return &s3Config{
-		client:          s3Client,
-		bucketName:      bucketName,
+		client:            s3Client,
+		bucketName:        bucketName,
 		contentFolderName: contentFolderName,
 		conceptFolderName: conceptFolderName,
-		archivesFolder:  archivesFolder,
+		archivesFolder:    archivesFolder,
 	}
 }
 
@@ -54,7 +55,7 @@ func (s3Config *s3Config) uploadFile(localFileName string, s3FileName string) er
 	}
 	defer zipFileToBeUploaded.Close()
 
-	_, err = s3Config.client.PutObject(s3Config.bucketName, fmt.Sprintf("%s/%s", s3Config.archivesFolder, s3FileName), zipFileToBeUploaded, "application/octet-stream")
+	_, err = s3Config.client.PutObject(s3Config.bucketName, fmt.Sprintf("%s/%s", s3Config.archivesFolder, s3FileName), zipFileToBeUploaded, -1, minio.PutObjectOptions{ContentType: "application/octet-stream"})
 	if err != nil {
 		return fmt.Errorf("Could not upload file with name %s to s3. Error was: %s", s3FileName, err)
 	}
@@ -68,11 +69,11 @@ func (s3Config *s3Config) downloadFile(fileName string, noOfRetries int) (s3Obje
 		return nil, fmt.Errorf("Cannot download file with name %s from s3", fileName)
 	}
 
-	obj, err := s3Config.client.GetObject(s3Config.bucketName, fileName)
+	obj, err := s3Config.client.GetObject(s3Config.bucketName, fileName, minio.GetObjectOptions{})
 	if err != nil {
 		log.WithError(err).Errorf("Cannot download file with name %s from s3. Sleeping for 5 seconds and retrying..", fileName)
 		time.Sleep(5 * time.Second)
-		return s3Config.downloadFile(fileName, noOfRetries - 1)
+		return s3Config.downloadFile(fileName, noOfRetries-1)
 	}
 
 	return obj, nil
