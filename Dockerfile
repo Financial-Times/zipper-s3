@@ -15,9 +15,7 @@ RUN VERSION="version=$(git describe --tag --always 2> /dev/null)" \
   && echo "Build flags: $LDFLAGS" \
   && CGO_ENABLED=0 go build -mod=readonly -a -o /artifacts/${PROJECT} -ldflags="${LDFLAGS}" 
 
-FROM scratch
-WORKDIR /
-COPY --from=0 /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+FROM alpine
 COPY --from=0 /artifacts/* /
 
 CMD [ "/zipper-s3" ]
