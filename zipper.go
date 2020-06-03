@@ -3,12 +3,13 @@ package main
 import (
 	"archive/zip"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"io"
 	"io/ioutil"
 	"os"
 	"strings"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -57,8 +58,6 @@ func zipAndUploadFiles(s3Config *s3Config, zipConfig *zipConfig, done chan bool,
 	if err != nil {
 		errsCh <- fmt.Errorf("Cannot upload zip with name %s to S3. Error was: %s", tempZipFileName, err)
 	}
-
-	return
 }
 
 func createZipFiles(s3Config *s3Config, zipConfig *zipConfig) (string, int, error) {
@@ -69,10 +68,11 @@ func createZipFiles(s3Config *s3Config, zipConfig *zipConfig) (string, int, erro
 	defer close(doneCh)
 
 	zipFile, err := ioutil.TempFile(os.TempDir(), zipConfig.zipName)
-	defer zipFile.Close()
 	if err != nil {
 		return "", 0, fmt.Errorf("Cannot create archive: %s", err)
 	}
+	defer zipFile.Close()
+
 	zipWriter := zip.NewWriter(zipFile)
 	defer zipWriter.Close()
 	log.Infof("Starting to zip files into archive with name %s", zipConfig.zipName)
