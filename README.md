@@ -31,6 +31,18 @@ Download the source code, dependencies and test dependencies:
     - `S3_CONTENT_FOLDER` name of the folder that json files with the content are stored in
     - `S3_CONCEPT_FOLDER` name of the folder that json files with the concept are stored in
     - `LOG_DEBUG` flag which if it is set to true, the app will also output debug logs
+
+## Testing
+
+This service is executed as a daily Kubernetes cronjob in the UPP Publishing clusters.
+It takes around 2 hours to complete its execution.
+If you don't want to wait until the next cron execution time to check the logs and the files in S3,
+you can manually trigger an execution using the following command (wait 2 hours to see if all archives are uploaded successfully):
+
+```shell
+kubectl create job --from=cronjob/zipper-s3 zipper-s3-manual
+```
+
 ## Build and deployment
 
 * Built by Docker Hub on merge to master: [coco/zipper-s3](https://hub.docker.com/r/coco/zipper-s3/)
