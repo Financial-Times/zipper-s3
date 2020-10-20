@@ -1,5 +1,0 @@
-# Values used for the deployed application.
-replicaCount: 1
-job:
-  name: zipper-s3
-
