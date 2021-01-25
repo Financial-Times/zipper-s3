@@ -9,6 +9,8 @@ metadata:
     app: {{ .Values.job.name }}
 spec:
   schedule: "0 4 * * *"
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
   jobTemplate:
     spec:
       template:
