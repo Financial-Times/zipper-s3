@@ -6,9 +6,13 @@ import (
 	"os"
 	"time"
 
+	"net/http"
+	_ "net/http/pprof"
+
 	"github.com/Shopify/sarama"
 	cli "github.com/jawher/mow.cli"
-	minio "github.com/minio/minio-go/v6"
+	minio "github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -104,7 +108,14 @@ func main() {
 			return
 		}
 
-		s3Client, err := minio.New(*s3Domain, *awsAccessKey, *awsSecretKey, true)
+		go func() {
+			log.Println(http.ListenAndServe("localhost:8080", nil))
+		}()
+
+		s3Client, err := minio.New(*s3Domain, &minio.Options{
+			Creds:  credentials.NewStaticV4(*awsAccessKey, *awsSecretKey, ""),
+			Secure: true,
+		})
 		if err != nil {
 			log.WithError(err).Fatal("Cannot create S3 client")
 		}
