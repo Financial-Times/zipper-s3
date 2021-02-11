@@ -131,6 +131,11 @@ func createZipFiles(s3Config *s3Config, zipConfig *zipConfig) (string, int, erro
 		}
 
 		s3File.Close()
+
+		err = zipWriter.Flush()
+		if err != nil {
+			return "", 0, fmt.Errorf("cannot flush file to zip archive: %s", err)
+		}
 	}
 
 	zippingUpDuration := time.Since(startTime)
