@@ -200,9 +200,15 @@ func groupS3ObjectsByYear(objects []string) map[int][]string {
 			continue
 		}
 
+		if len(groupedObjects[s3ObjectDate.Year()]) > 0 {
+			continue
+		}
 		groupedObjects[s3ObjectDate.Year()] = append(groupedObjects[s3ObjectDate.Year()], obj)
 
 		if isDateLessThanThirtyDaysBefore(s3ObjectDate) {
+			if len(groupedObjects[0]) > 0 {
+				continue
+			}
 			groupedObjects[0] = append(groupedObjects[0], obj)
 		}
 	}
