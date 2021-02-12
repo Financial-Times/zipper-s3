@@ -190,3 +190,22 @@ func extractDateFromS3ObjectKey(s3ObjectKey string) (time.Time, error) {
 
 	return date, nil
 }
+
+func groupS3ObjectsByYear(objects []string) map[int][]string {
+	groupedObjects := make(map[int][]string)
+	for _, obj := range objects {
+		s3ObjectDate, err := extractDateFromS3ObjectKey(obj)
+		if err != nil {
+			log.WithError(err).Errorf("Cannot extract date from file name %s, error was: %s", obj, err)
+			continue
+		}
+
+		groupedObjects[s3ObjectDate.Year()] = append(groupedObjects[s3ObjectDate.Year()], obj)
+
+		if isDateLessThanThirtyDaysBefore(s3ObjectDate) {
+			groupedObjects[0] = append(groupedObjects[0], obj)
+		}
+	}
+
+	return groupedObjects
+}

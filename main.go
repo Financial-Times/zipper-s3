@@ -141,6 +141,7 @@ func main() {
 		if err != nil {
 			log.WithError(err).Fatal("Cannot get file keys from s3")
 		}
+		groupedContentFileKeys := groupS3ObjectsByYear(contentFileKeys)
 
 		errsCh := make(chan error)
 		//zip files on a per year basis
@@ -183,7 +184,7 @@ func main() {
 			log.Infof("Zipping up files from year %d waiting to launch!", year)
 			<-concurrentGoroutines
 
-			zipConfig := newZipConfig(fmt.Sprintf(yearlyArchivesNameFormat, year), isContentFromProvidedYear, year, contentFileKeys)
+			zipConfig := newZipConfig(fmt.Sprintf(yearlyArchivesNameFormat, year), nil, year, groupedContentFileKeys[year])
 			go zipAndUploadFiles(s3Config, zipConfig, done, errsCh)
 		}
 
@@ -191,7 +192,7 @@ func main() {
 		<-done
 
 		//zip files for last 30 days
-		zipConfig = newZipConfig(last30DaysArchiveName, isContentLessThanThirtyDaysBefore, 0, contentFileKeys)
+		zipConfig = newZipConfig(last30DaysArchiveName, nil, 0, groupedContentFileKeys[0])
 		go zipAndUploadFiles(s3Config, zipConfig, done, errsCh)
 
 		go func() {
