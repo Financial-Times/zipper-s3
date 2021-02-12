@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"runtime"
 	"strings"
 	"time"
 
@@ -58,6 +59,8 @@ func zipAndUploadFiles(s3Config *s3Config, zipConfig *zipConfig, done chan bool,
 	if err != nil {
 		errsCh <- fmt.Errorf("Cannot upload zip with name %s to S3. Error was: %s", tempZipFileName, err)
 	}
+
+	runtime.GC()
 }
 
 func createZipFiles(s3Config *s3Config, zipConfig *zipConfig) (string, int, error) {
