@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -36,7 +35,7 @@ func (s3Client *mockS3Client) GetObject(bucketName, objectName string, opts mini
 
 	return nil, fmt.Errorf("Network failure")
 }
-func (s3Client *mockS3Client) PutObject(bucketName, objectName string, reader io.Reader, objectSize int64, opts minio.PutObjectOptions) (n int64, err error) {
+func (s3Client *mockS3Client) FPutObject(bucketName, objectName, filePath string, opts minio.PutObjectOptions) (n int64, err error) {
 	fmt.Printf("name is: %s", objectName)
 	if objectName == zipNameForFailingS3Client {
 		return 0, fmt.Errorf("cannot upload file")
@@ -100,14 +99,6 @@ func TestUploadFileHappyFlow(t *testing.T) {
 	err = s3Config.uploadFile(tempZipName, "test.zip")
 
 	assert.Nil(t, err)
-}
-
-func TestUploadFileNonExistingZip(t *testing.T) {
-	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "", "", "")
-
-	err := s3Config.uploadFile(nonExistingZip, "test.zip")
-
-	assert.NotNil(t, err)
 }
 
 func TestUploadFileWithS3ClientFailure(t *testing.T) {
