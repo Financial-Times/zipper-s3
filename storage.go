@@ -2,12 +2,10 @@ package main
 
 import (
 	"fmt"
-	"io"
-	"os"
 	"strings"
 	"time"
 
-	minio "github.com/minio/minio-go/v6"
+	"github.com/minio/minio-go/v6"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -27,7 +25,7 @@ type s3Object interface {
 
 type s3Client interface {
 	GetObject(bucketName, objectName string, opts minio.GetObjectOptions) (*minio.Object, error)
-	PutObject(bucketName, objectName string, reader io.Reader, objectSize int64, opts minio.PutObjectOptions) (n int64, err error)
+	FPutObject(bucketName, objectName, filePath string, opts minio.PutObjectOptions) (n int64, err error)
 	ListObjects(bucketName, objectPrefix string, recursive bool, doneCh <-chan struct{}) <-chan minio.ObjectInfo
 }
 
@@ -49,15 +47,14 @@ func newS3Config(s3Client s3Client, bucketName string, contentFolderName string,
 
 func (s3Config *s3Config) uploadFile(localFileName string, s3FileName string) error {
 	log.Infof("Uploading file %s to s3...", localFileName)
-	zipFileToBeUploaded, err := os.Open(localFileName)
+	_, err := s3Config.client.FPutObject(
+		s3Config.bucketName,
+		fmt.Sprintf("%s/%s", s3Config.archivesFolder, s3FileName),
+		localFileName,
+		minio.PutObjectOptions{ContentType: "application/octet-stream"},
+	)
 	if err != nil {
-		return fmt.Errorf("Could not open zip archive with name %s. Error was: %s", s3FileName, err)
-	}
-	defer zipFileToBeUploaded.Close()
-
-	_, err = s3Config.client.PutObject(s3Config.bucketName, fmt.Sprintf("%s/%s", s3Config.archivesFolder, s3FileName), zipFileToBeUploaded, -1, minio.PutObjectOptions{ContentType: "application/octet-stream"})
-	if err != nil {
-		return fmt.Errorf("Could not upload file with name %s to s3. Error was: %s", s3FileName, err)
+		return fmt.Errorf("could not upload file with name %s to s3:%w", s3FileName, err)
 	}
 
 	log.Infof("Finished uploading file %s to s3", localFileName)
