@@ -2,10 +2,21 @@
     Written in the format prescribed by https://github.com/Financial-Times/runbook.md.
     Any future edits should abide by this format.
 -->
-
 # Zipper S3
 
 App that is zipping up content and concepts from an S3 bucket and uploads the zip file back into the bucket.
+
+## Code
+
+zipper-s3
+
+<!-- Placeholder - remove HTML comment markers to activate
+## Primary URL
+Enter descriptive text satisfying the following:
+The main url served by the system.
+
+...or delete this placeholder if not applicable to this system
+-->
 
 ## Service Tier
 
@@ -14,22 +25,6 @@ Bronze
 ## Lifecycle Stage
 
 Production
-
-## Delivered By
-
-content
-
-## Supported By
-
-content
-
-## Known About By
-
-- kalin.arsov
-- elitsa.pavlova
-- ivan.nikolov
-- hristo.georgiev
-- elina.kaneva
 
 ## Host Platform
 
@@ -46,6 +41,20 @@ No
 ## Contains Sensitive Data
 
 No
+
+<!-- Placeholder - remove HTML comment markers to activate
+## Can Download Personal Data
+Choose Yes or No
+
+...or delete this placeholder if not applicable to this system
+-->
+
+<!-- Placeholder - remove HTML comment markers to activate
+## Can Contact Individuals
+Choose Yes or No
+
+...or delete this placeholder if not applicable to this system
+-->
 
 ## Failover Architecture Type
 
@@ -82,6 +91,14 @@ Manual
 ## Release Details
 
 It is being deployed via a Jenkins job as the services are. No failover is required as it is a Cronjob.
+
+<!-- Placeholder - remove HTML comment markers to activate
+## Heroku Pipeline Name
+Enter descriptive text satisfying the following:
+This is the name of the Heroku pipeline for this system. If you don't have a pipeline, this is the name of the app in Heroku. A pipeline is a group of Heroku apps that share the same codebase where each app in a pipeline represents the different stages in a continuous delivery workflow, i.e. staging, production.
+
+...or delete this placeholder if not applicable to this system
+-->
 
 ## Key Management Process Type
 
