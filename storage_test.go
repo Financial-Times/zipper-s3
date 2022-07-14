@@ -1,68 +1,116 @@
 package main
 
 import (
+	"bytes"
 	"errors"
-	"fmt"
-	"io/ioutil"
-	"os"
+	"io"
 	"testing"
 
-	minio "github.com/minio/minio-go/v6"
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-)
 
-type mockS3Client struct {
-	shouldRetry bool
-}
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
+	s3 "github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3iface"
+)
 
 const (
-	validFileName             = "valid-object.json"
-	invalidFileName           = "invalid-object.json"
-	nonExistingZip            = "non-existing-zip.zip"
-	zipNameForFailingS3Client = "yearly-archives/failing-s3-client.zip"
-	invalidZipName            = "failing-s3-client.zip"
+	validFileName     = "valid-object.json"
+	invalidFileName   = "invalid-object.json"
+	nonExistingZip    = "non-existing-zip.zip"
+	nonExistingBucket = "fake-bucket"
+
+	testzipMD5  = "cnFydJN8FOw0Ry6PbQZ7Sg=="
+	testzipPath = "testdata/test.zip"
 )
 
-func (s3Client *mockS3Client) GetObject(bucketName, objectName string, opts minio.GetObjectOptions) (*minio.Object, error) {
-	if s3Client.shouldRetry {
-		s3Client.shouldRetry = false
-		return nil, fmt.Errorf("Too many requests")
+var (
+	testFolderFiles = []string{
+		"test-folder/file1.txt",
+		"test-folder/file2.txt",
+		"test-folder/file3.txt",
+		"test-folder/file4.txt",
+		"test-folder/file5.txt",
+		"test-folder/file6.txt",
 	}
+)
 
-	if objectName == validFileName {
-		return &minio.Object{}, nil
-	}
-
-	return nil, fmt.Errorf("Network failure")
+func init() {
+	log.SetLevel(log.ErrorLevel)
 }
-func (s3Client *mockS3Client) FPutObject(bucketName, objectName, filePath string, opts minio.PutObjectOptions) (n int64, err error) {
-	fmt.Printf("name is: %s", objectName)
-	if objectName == zipNameForFailingS3Client {
-		return 0, fmt.Errorf("cannot upload file")
+
+type mockS3Client struct {
+	s3iface.S3API
+}
+
+func (m *mockS3Client) PutObject(poi *s3.PutObjectInput) (*s3.PutObjectOutput, error) {
+	if *poi.Bucket == nonExistingBucket {
+		return nil, awserr.New("NoSuchBucket", "The specified bucket does not exist", nil)
 	}
 
-	return 0, nil
-}
-func (s3Client *mockS3Client) ListObjects(bucketName, objectPrefix string, recursive bool, doneCh <-chan struct{}) <-chan minio.ObjectInfo {
-	result := make(chan minio.ObjectInfo)
-	if objectPrefix == "valid-prefix" {
-		go func() {
-			result <- minio.ObjectInfo{Key: validFileName}
-			close(result)
-		}()
-	} else if objectPrefix == "valid-prefix-with-errors-on-file" {
-		go func() {
-			result <- minio.ObjectInfo{Key: validFileName, Err: errors.New("error")}
-			close(result)
-		}()
-	} else {
-		close(result)
+	if *poi.Key == "test-folder/test.zip" {
+		if *poi.ContentMD5 != testzipMD5 {
+			return nil, awserr.New("BadDigest", "The Content-MD5 you specified did not match what we received.", nil)
+		}
 	}
-	return result
+
+	return nil, nil
+}
+
+func (m *mockS3Client) GetObject(goi *s3.GetObjectInput) (*s3.GetObjectOutput, error) {
+	if *goi.Key == validFileName {
+		return &s3.GetObjectOutput{
+			Body: io.NopCloser(bytes.NewReader([]byte("contents"))),
+		}, nil
+	}
+	if *goi.Key == invalidFileName {
+		return nil, awserr.New("NoSuchKey", "The specified key does not exist.", nil)
+	}
+
+	return nil, errors.New("error")
+}
+
+func (m *mockS3Client) ListObjectsV2(loi *s3.ListObjectsV2Input) (*s3.ListObjectsV2Output, error) {
+	if *loi.Bucket == nonExistingBucket {
+		return nil, awserr.New("NoSuchBucket", "The specified bucket does not exist", nil)
+	}
+
+	// We are ignoring the MaxKeys field in order to test the pagination
+	if *loi.Prefix == "test-folder" {
+		var isTruncated bool
+		var contents = make([]*s3.Object, 0, 4)
+		var from, to int
+
+		if *loi.StartAfter == "" {
+			isTruncated = true
+			from, to = 0, 4
+		} else {
+			from, to = 4, len(testFolderFiles)
+		}
+
+		for i := from; i < to; i++ {
+			contents = append(contents, &s3.Object{
+				Key: &testFolderFiles[i],
+			})
+		}
+
+		return &s3.ListObjectsV2Output{
+			IsTruncated: aws.Bool(isTruncated),
+			Contents:    contents,
+		}, nil
+	}
+	if *loi.Prefix == "empty-folder" {
+		return &s3.ListObjectsV2Output{
+			IsTruncated: aws.Bool(false),
+		}, nil
+	}
+
+	return nil, errors.New("error")
 }
 
 func TestDownloadFileHappyFlow(t *testing.T) {
-	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "", "", "")
+	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "")
 
 	downloadedFile, err := s3Config.downloadFile(validFileName, 2)
 
@@ -70,17 +118,8 @@ func TestDownloadFileHappyFlow(t *testing.T) {
 	assert.NotNil(t, downloadedFile)
 }
 
-func TestDownloadFileWithOneRetry(t *testing.T) {
-	s3Config := newS3Config(&mockS3Client{shouldRetry: true}, "test-bucket", "", "", "")
-
-	downloadedFile, err := s3Config.downloadFile(validFileName, 3)
-
-	assert.Nil(t, err)
-	assert.NotNil(t, downloadedFile)
-}
-
 func TestDownloadFileWithInvalidFileName(t *testing.T) {
-	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "", "", "")
+	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "")
 
 	downloadedFile, err := s3Config.downloadFile(invalidFileName, 3)
 
@@ -88,46 +127,94 @@ func TestDownloadFileWithInvalidFileName(t *testing.T) {
 	assert.Nil(t, downloadedFile)
 }
 
-func TestUploadFileHappyFlow(t *testing.T) {
-	zipFile, err := ioutil.TempFile(os.TempDir(), "test.zip")
-	assert.Nil(t, err)
-	tempZipName := zipFile.Name()
-	defer os.Remove(tempZipName)
-	zipFile.Close()
-	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "", "", "")
+func TestUploadFile(t *testing.T) {
+	tests := map[string]struct {
+		bucketName string
+		sourceName string
+		expErr     bool
+	}{
+		"Success": {
+			bucketName: "archives",
+			sourceName: testzipPath,
+		},
+		"NoExistingFile": {
+			bucketName: "archives",
+			sourceName: nonExistingZip,
+			expErr:     true,
+		},
+		"ErrFromS3Client": {
+			bucketName: "fake-bucket",
+			sourceName: "",
+			expErr:     true,
+		},
+	}
 
-	err = s3Config.uploadFile(tempZipName, "test.zip")
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			s3Config := newS3Config(&mockS3Client{}, test.bucketName, "test-folder")
+			err := s3Config.uploadFile(test.sourceName, "test.zip")
 
-	assert.Nil(t, err)
+			if err == nil && test.expErr {
+				t.Fatalf("expected error, did not get one")
+			}
+			if err != nil && !test.expErr {
+				t.Fatalf("did not expect error, got: %s", err)
+			}
+		})
+	}
 }
 
-func TestUploadFileWithS3ClientFailure(t *testing.T) {
-	zipFile, err := ioutil.TempFile(os.TempDir(), "test.zip")
-	assert.Nil(t, err)
-	tempZipName := zipFile.Name()
-	defer os.Remove(tempZipName)
-	zipFile.Close()
-	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "", "", "yearly-archives")
+func TestGetFileKeys(t *testing.T) {
+	tests := map[string]struct {
+		bucketName string
+		folderName string
+		want       []string
+		expErr     bool
+	}{
+		"Success": {
+			bucketName: "test-bucket",
+			folderName: "test-folder",
+			want:       testFolderFiles,
+		},
+		"EmptyFolder": {
+			bucketName: "test-bucket",
+			folderName: "empty-folder",
+		},
+		"ErrorFromS3": {
+			bucketName: nonExistingBucket,
+			folderName: "some-folder",
+			expErr:     true,
+		},
+	}
 
-	err = s3Config.uploadFile(tempZipName, invalidZipName)
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			s3Config := newS3Config(&mockS3Client{}, test.bucketName, "archives")
+			got, err := s3Config.getFileKeys(test.folderName)
 
-	assert.NotNil(t, err)
+			if err != nil && !test.expErr {
+				t.Fatalf("did not expect error, got: %s", err)
+			}
+			if err == nil && test.expErr {
+				t.Fatalf("expected error, did not get one")
+			}
+
+			if !equalSlices(got, test.want) {
+				t.Fatalf("want: %v, got: %v", test.want, got)
+			}
+		})
+	}
 }
 
-func TestGetObjectKeysValidKeys(t *testing.T) {
-	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "valid-prefix", "", "")
+func equalSlices(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
 
-	fileKeys, err := s3Config.getFileKeys("valid-prefix")
-
-	assert.Nil(t, err)
-	assert.Equal(t, 1, len(fileKeys))
-	assert.Equal(t, validFileName, fileKeys[0])
-}
-
-func TestGetObjectKeysObjectInfoWithErrs(t *testing.T) {
-	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "valid-prefix-with-errors-on-file", "", "")
-
-	_, err := s3Config.getFileKeys("valid-prefix-with-errors-on-file")
-
-	assert.NotNil(t, err)
+	for i := 0; i < len(a); i++ {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }

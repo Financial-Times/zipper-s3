@@ -20,6 +20,7 @@ spec:
             app: {{ .Values.job.name }}
             visualize: "true"
         spec:
+          serviceAccountName: {{ .Values.serviceAccountName }}
           containers:
           - name: {{ .Values.job.name }}
             image: "{{ .Values.image.repository }}:{{ .Chart.Version }}"
@@ -50,16 +51,6 @@ spec:
                 configMapKeyRef:
                   name: global-config
                   key: zipper.max.goroutines
-            - name: AWS_ACCESS_KEY_ID
-              valueFrom:
-                secretKeyRef:
-                  name: global-secrets
-                  key: aws.access_key_id
-            - name: AWS_SECRET_ACCESS_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: global-secrets
-                  key: aws.secret_access_key
             - name: IS_ENABLED
               valueFrom:
                 configMapKeyRef:
