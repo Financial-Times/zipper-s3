@@ -24,13 +24,20 @@ Download the source code, dependencies and test dependencies:
     - `IS_ENABLED` flag which if it is true, the app will run the zip creation process, otherwise will stop immediately after start.
     - `MAX_NO_OF_GOROUTINES` the maximum number of goroutines which is used to zip files
     - `YEAR_TO_START` the app will create yearly zips starting from provided year. Defaults to 1995, when the first FT article has been published. 
-    - `AWS_ACCESS_KEY_ID` S3 access key
-    - `AWS_SECRET_ACCESS_KEY` S3 secret key
     - `BUCKET_NAME` bucket name of content
     - `S3_DOMAIN` S3 domain of content
     - `S3_CONTENT_FOLDER` name of the folder that json files with the content are stored in
     - `S3_CONCEPT_FOLDER` name of the folder that json files with the concept are stored in
     - `LOG_DEBUG` flag which if it is set to true, the app will also output debug logs
+
+    AWS related envvars.
+    - `AWS_ACCESS_KEY_ID` S3 access key
+    - `AWS_SECRET_ACCESS_KEY` S3 secret key
+    - `AWS_REGION` S3 region
+
+## Running in Kubernetes
+
+When the app is running in kubernetes, `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` envvars are not being used, instead `AWS_ROLE_ARN` and `AWS_WEB_IDENTITY_TOKEN_FILE` are used. The `aws-sdk-go` uses whichever envvars are present behind the scenes(in our code base there isn't logic for this).
 
 ## Testing
 

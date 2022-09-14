@@ -5,29 +5,14 @@ import (
 	"testing"
 	"time"
 
-	minio "github.com/minio/minio-go/v6"
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
 const contentUUID = "00544bc0-679f-11e7-9d4e-ae21227e5abf"
 
-type s3ObjectMock struct {
-	name    string
-	content string
-}
-
-func (s *s3ObjectMock) Stat() (minio.ObjectInfo, error) {
-	return minio.ObjectInfo{Key: s.name}, nil
-}
-
-func (s *s3ObjectMock) Close() error {
-	return nil
-
-}
-
-func (s *s3ObjectMock) Read(p []byte) (int, error) {
-	s.content = string(p)
-	return 0, nil
+func init() {
+	log.SetLevel(log.ErrorLevel)
 }
 
 func TestIsDateLessThanThirtyDaysBeforeOneHourBefore(t *testing.T) {
@@ -90,7 +75,7 @@ func TestIsContentMoreThanThirtyDaysBeforeInvalidDateFormat(t *testing.T) {
 }
 
 func TestZipFilesNoFiles(t *testing.T) {
-	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "", "", "")
+	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "")
 	zipConfig := newZipConfig("", nil, 0, []string{})
 
 	_, noOfZippedFiles, err := createZipFiles(s3Config, zipConfig)
@@ -161,7 +146,7 @@ func TestIsContentFromProvidedYearProvidedKeyIsInvalid(t *testing.T) {
 }
 
 func TestZipFilesInvalidFileName(t *testing.T) {
-	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "", "", "")
+	s3Config := newS3Config(&mockS3Client{}, "test-bucket", "")
 	zipConfig := newZipConfig("yearly-archive-2017.zip", nil, 2017, []string{"invalid-file"})
 
 	_, _, err := createZipFiles(s3Config, zipConfig)

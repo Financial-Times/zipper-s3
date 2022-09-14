@@ -7,8 +7,9 @@ import (
 	"time"
 
 	"github.com/Shopify/sarama"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
 	cli "github.com/jawher/mow.cli"
-	minio "github.com/minio/minio-go/v6"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -39,26 +40,10 @@ func main() {
 		EnvVar: "YEAR_TO_START",
 	})
 
-	awsAccessKey := app.String(cli.StringOpt{
-		Name:   "aws-access-key-id",
-		Desc:   "S3 access key",
-		EnvVar: "AWS_ACCESS_KEY_ID",
-	})
-	awsSecretKey := app.String(cli.StringOpt{
-		Name:   "aws-secret-access-key",
-		Desc:   "S3 secret key",
-		EnvVar: "AWS_SECRET_ACCESS_KEY",
-	})
 	bucketName := app.String(cli.StringOpt{
 		Name:   "bucket-name",
 		Desc:   "bucket name of content",
 		EnvVar: "BUCKET_NAME",
-	})
-	s3Domain := app.String(cli.StringOpt{
-		Name:   "s3-domain",
-		Value:  "s3.amazonaws.com",
-		Desc:   "S3 domain of content",
-		EnvVar: "S3_DOMAIN",
 	})
 
 	s3ConceptFolder := app.String(cli.StringOpt{
@@ -104,12 +89,14 @@ func main() {
 			return
 		}
 
-		s3Client, err := minio.New(*s3Domain, *awsAccessKey, *awsSecretKey, true)
+		// NewSession will read envvars set by the EKS Pod Identity webhook
+		sess, err := session.NewSession()
 		if err != nil {
-			log.WithError(err).Fatal("Cannot create S3 client")
+			log.WithError(err).Fatal("creating aws session")
 		}
 
-		s3Config := newS3Config(s3Client, *bucketName, *s3ContentFolder, *s3ConceptFolder, *s3ArchivesFolder)
+		s3Client := s3.New(sess)
+		s3Config := newS3Config(s3Client, *bucketName, *s3ArchivesFolder)
 
 		startTime := time.Now()
 		go func() {
@@ -120,13 +107,13 @@ func main() {
 		}()
 
 		//concepts zipping
-		conceptFileKeys, err := s3Config.getFileKeys(s3Config.conceptFolderName)
+		conceptFileKeys, err := s3Config.getFileKeys(*s3ConceptFolder)
 		if err != nil {
 			log.WithError(err).Fatal("Cannot get file keys from s3")
 		}
 
 		//contents zipping
-		contentFileKeys, err := s3Config.getFileKeys(s3Config.contentFolderName)
+		contentFileKeys, err := s3Config.getFileKeys(*s3ContentFolder)
 		if err != nil {
 			log.WithError(err).Fatal("Cannot get file keys from s3")
 		}
