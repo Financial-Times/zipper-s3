@@ -36,6 +36,11 @@ spec:
                 configMapKeyRef:
                   name: global-config
                   key: upp-exports-s3.bucket
+            - name: BUCKET_REGION
+              valueFrom:
+                configMapKeyRef:
+                  name: global-config
+                  key: upp-exports-s3.region
             - name: S3_CONCEPT_FOLDER
               valueFrom:
                 configMapKeyRef:
