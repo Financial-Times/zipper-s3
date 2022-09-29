@@ -25,6 +25,7 @@ Download the source code, dependencies and test dependencies:
     - `MAX_NO_OF_GOROUTINES` the maximum number of goroutines which is used to zip files
     - `YEAR_TO_START` the app will create yearly zips starting from provided year. Defaults to 1995, when the first FT article has been published. 
     - `BUCKET_NAME` bucket name of content
+    - `BUCKET_REGION` bucket-name's region
     - `S3_DOMAIN` S3 domain of content
     - `S3_CONTENT_FOLDER` name of the folder that json files with the content are stored in
     - `S3_CONCEPT_FOLDER` name of the folder that json files with the concept are stored in

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Shopify/sarama"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	cli "github.com/jawher/mow.cli"
@@ -46,6 +47,12 @@ func main() {
 		EnvVar: "BUCKET_NAME",
 	})
 
+	bucketRegion := app.String(cli.StringOpt{
+		Name:   "bucket-region",
+		Desc:   "bucket-name's region",
+		EnvVar: "BUCKET_REGION",
+	})
+
 	s3ConceptFolder := app.String(cli.StringOpt{
 		Name:   "s3-concept-folder",
 		Value:  "unarchived-concepts",
@@ -82,15 +89,24 @@ func main() {
 			log.SetLevel(log.DebugLevel)
 		}
 
-		log.Infof("Starting app with parameters: [s3-content-folder=%s],[s3-concepts-folder=%s], [s3-archives-folder=%s], [bucket-name=%s] [year-to-start=%d] [max-no-of-goroutines=%d] [is-enabled: %t]", *s3ContentFolder, *s3ConceptFolder, *s3ArchivesFolder, *bucketName, *yearToStart, *maxNoOfGoroutines, *isAppEnabled)
+		params := map[string]interface{}{
+			"s3-content-folder":    *s3ContentFolder,
+			"s3-concepts-folder":   *s3ConceptFolder,
+			"s3-archives-folder":   *s3ArchivesFolder,
+			"bucket-name":          *bucketName,
+			"bucket-region":        *bucketRegion,
+			"year-to-start":        *yearToStart,
+			"max-no-of-goroutines": *maxNoOfGoroutines,
+			"is-enabled":           *isAppEnabled,
+		}
+		log.WithField("parameters", params).Info("Starting app")
 
 		if !*isAppEnabled {
 			log.Infof("App is not enabled. Please enable it by setting the IS_ENABLED env var.")
 			return
 		}
 
-		// NewSession will read envvars set by the EKS Pod Identity webhook
-		sess, err := session.NewSession()
+		sess, err := session.NewSession(aws.NewConfig().WithRegion(*bucketRegion))
 		if err != nil {
 			log.WithError(err).Fatal("creating aws session")
 		}
