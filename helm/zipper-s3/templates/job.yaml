@@ -8,7 +8,7 @@ metadata:
     visualize: "true"
     app: {{ .Values.job.name }}
 spec:
-  schedule: "0 4 * * *"
+  schedule: "0 5 * * *"
   successfulJobsHistoryLimit: 1
   failedJobsHistoryLimit: 1
   jobTemplate:
